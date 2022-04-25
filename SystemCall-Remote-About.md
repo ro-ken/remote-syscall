@@ -83,6 +83,10 @@
 
 ### 如何在本地进程中拦截系统调用
 
+#### 通过ptrace
+
+### 怎么在服务器端维护一个本地进程的上下文
+
 
 
 ## reference
@@ -98,6 +102,8 @@
 ### google gvisor
 
 1. [gVisor：谷歌发布的一个用于提供安全隔离的轻量级容器运行时沙箱](https://www.infoq.cn/article/2018/05/gvisor-container-sandbox)
+1. [Kubernetes的Kata Containers 与 gVisor - ghostwritten](https://blog.kelu.org/tech/2022/02/15/kubernetes-kata-gvisor.html)
+1. [**gVisor是什么？可以解决什么问题**](https://blog.51cto.com/u_15127630/2770676)
 
 ### LD_PRELOAD
 
