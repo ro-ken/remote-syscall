@@ -7,14 +7,14 @@
 
 int main(){
     FILE *fp = NULL;
-    char ch[100] = "huomax is a shuaibi";
+    char ch[20] = "huomax is a shuaibi";
 
-    if(NULL == (fp = fopen("testsdfsdf.txt", "w"))){
+    if(NULL == (fp = fopen("test2.txt", "w"))){
         printf("can't open file!\n\n");
         exit(EXIT_FAILURE);
     }
 
-    fwrite(ch, sizeof(ch), 100, fp);
+    fwrite(ch, sizeof(ch), 20, fp);
     fclose(fp);
     return 0;
 
