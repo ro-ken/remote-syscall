@@ -12,6 +12,7 @@
 #define PORT 9990
 #define SIZE 1024
  
+/* 这代码看起来好丑啊 */
 int creat_socket();
 int wait_client(int listen_socket);
 long  atol(const char *nptr);
