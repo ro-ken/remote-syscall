@@ -34,6 +34,8 @@ int load_syscall_table(){
 
 int main(){
     // load_syscall_table();
+    char testbuf[] = "huomax is shuaige!";
+    printf("%d\n", sizeof(testbuf));
     int test_return = -1;
     char buf[100] = "huomax is shuaige";
     if ((test_return = test()) == 2){
