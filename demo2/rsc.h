@@ -5,8 +5,14 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
+
+/* POSIX */
 #include <unistd.h>
+#include <sys/user.h>
+#include <sys/wait.h>
+#include <sys/syscall.h>
 
 /* Linux */
 #include <sys/socket.h>
@@ -15,10 +21,9 @@
 #include <sys/types.h>
 
 
-
-#define RSC_SERVER_IP "127.0.0.1"
-#define RSC_SERVER_PORT 10000
-#define RSC_MAX_CONNECTS 5
+#define RSC_MAX_ERRNO_SIZE 1000
+#define NR_GETPID 39
+#define RSC_REDIRECT_SYSCALL 10000
 
 /* 系统调用参数传递 */
 struct syscall_para {
@@ -34,7 +39,8 @@ struct syscall_para {
 /* 系统调用结果返回 */
 struct syscall_return {
     unsigned long long int rax;
-    char error_info[1000];
+    int errno_num;
+    char error_info[RSC_MAX_ERRNO_SIZE];
 };
 
 #define FATAL(...) \
@@ -43,5 +49,6 @@ struct syscall_return {
         fputc('\n', stderr); \
         exit(EXIT_FAILURE); \
     } while (0)
+
 
 #endif

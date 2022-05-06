@@ -3,6 +3,11 @@
 
 #include "rsc.h"
 
+/* tcp socket paraments */
+#define RSC_SERVER_IP "127.0.0.1"
+#define RSC_SERVER_PORT 10000
+#define RSC_MAX_CONNECTS 5
+
 /* socket server struct */
 struct rsc_socket_server {
     int fd;
