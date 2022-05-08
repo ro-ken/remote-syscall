@@ -47,10 +47,15 @@ int main(int argc, char **argv)
 
     for (;;) {
         /* Enter next system call */
-        if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
+        if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1){
+            printf("stop here: first ptrace_syscall\n");
             FATAL("%s", strerror(errno));
-        if (waitpid(pid, 0, 0) == -1)
+        }
+
+        if (waitpid(pid, 0, 0) == -1){
+            printf("stop here: first waitpid\n");
             FATAL("%s", strerror(errno));
+        }
 
         /* Gather system call arguments */
         struct user_regs_struct regs;

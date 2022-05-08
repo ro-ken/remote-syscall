@@ -13,6 +13,7 @@
 #include <sys/user.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
+#include <sys/ptrace.h>
 
 /* Linux */
 #include <sys/socket.h>
@@ -40,7 +41,7 @@ struct syscall_para {
 struct syscall_return {
     unsigned long long int rax;
     int errno_num;
-    char error_info[RSC_MAX_ERRNO_SIZE];
+    char errno_info[RSC_MAX_ERRNO_SIZE];
 };
 
 #define FATAL(...) \

@@ -16,10 +16,20 @@
 
 #define FATAL(...) \
     do { \
-        fprintf(stderr, "RSC: " __VA_ARGS__); \
+        if (errno == ESRCH) { \
+            printf("[remote syscall tip]: tracee is eixted!\n"); \
+            exit(EXIT_FAILURE); \
+        } \
+        fprintf(stderr, "[remote syscall fatal]: " __VA_ARGS__); \
         fputc('\n', stderr); \
         exit(EXIT_FAILURE); \
-    } while (0)
+    } while (0).
+
+#define WARNING(...) \
+    do { \
+        fprintf(stdout, "[remote syscall warning]: " __VA_ARGS__); \
+        fputc('\n', stdout); \
+    }while(0)
 
 int main(int argc, char **argv)
 {
@@ -40,32 +50,35 @@ int main(int argc, char **argv)
     }
 
     /* parent */
-    waitpid(pid, 0, 0); 
+    waitpid(pid, 0, 0);
+    printf("parrent pid is: %d, child pid is %d\n", getpid(), pid);
 
     /* exit the tracee when exit tracer */
     ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);
 
     for (;;) {
         /* Enter next system call */
-        if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
+        if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1){
+            printf("stop here: first ptrace_syscall\n");
             FATAL("%s", strerror(errno));
-        if (waitpid(pid, 0, 0) == -1)
+        }
+
+        if (waitpid(pid, 0, 0) == -1){
+            printf("stop here: first waitpid\n");
             FATAL("%s", strerror(errno));
+        }
+
 
         /* Gather system call arguments */
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
+        if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1){
+            printf("stop here: first getregs\n");
             FATAL("%s", strerror(errno));
+        }
         long syscall = regs.orig_rax;
 
-        /* Print a representation of the system call */
-        fprintf(stderr, "enter syscall:%ld (RDI: %ld, RSI: %ld, RDX: %ld, R10: %ld, R8: %ld, R9: %ld)\n",
-                syscall,
-                (long)regs.rdi, (long)regs.rsi, (long)regs.rdx,
-                (long)regs.r10, (long)regs.r8,  (long)regs.r9);
-
         /* Run system call and stop on exit */
-        if(syscall == 1){
+        if(syscall == 39){
             regs.orig_rax = 10000;
             if (ptrace(PTRACE_SETREGS, pid, 0, &regs) == -1){
                 fputs(" = ?\n", stderr);
@@ -73,29 +86,34 @@ int main(int argc, char **argv)
                     exit(regs.rdi);
                 FATAL("%s", strerror(errno));
             }
+
+            if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
+                FATAL("%s", strerror(errno));
+            if (waitpid(pid, 0, 0) == -1)
+                FATAL("%s", strerror(errno));
+            
+            regs.rax = getpid();
+            regs.orig_rax = 39;
+            if (ptrace(PTRACE_SETREGS, pid, 0, &regs) == -1){
+                fputs(" = ?\n", stderr);
+                if (errno == ESRCH)
+                    exit(regs.rdi);
+                FATAL("%s", strerror(errno));
+            }
+
+            continue;
         }
-        if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1)
+
+        if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1){
+            printf("stop here: second ptrace_syscall\n");
             FATAL("%s", strerror(errno));
-        if (waitpid(pid, 0, 0) == -1)
+        }
+
+        if (waitpid(pid, 0, 0) == -1){
+            printf("stop here: second waitpid\n");
             FATAL("%s", strerror(errno));
+        }
         
-        struct user_regs_struct return_regs;
-        /* Get system call result */
-        if (ptrace(PTRACE_GETREGS, pid, 0, &return_regs) == -1) {
-            fputs(" = ?\n", stderr);
-            if (errno == ESRCH)
-                exit(regs.rdi); // system call was _exit(2) or similar
-            FATAL("%s", strerror(errno));
-        }
-
-        /* Print a representation of the system call */
-        fprintf(stderr, "exit syscall:%ld (RDI: %ld, RSI: %ld, RDX: %ld, R10: %ld, R8: %ld, R9: %ld)",
-                syscall,
-                (long)return_regs.rdi, (long)return_regs.rsi, (long)return_regs.rdx,
-                (long)return_regs.r10, (long)return_regs.r8,  (long)return_regs.r9);
-
-        /* Print system call result */
-        fprintf(stderr, " = %ld\n", (long)return_regs.rax);
     }
 }
 

@@ -4,7 +4,7 @@
 int main(int argc, char **argv)
 {
     /* parament number check */
-    if (arg <= 1){
+    if (argc <= 1){
         FATAL("too few arguments: %d", argc);
     }
 

@@ -41,12 +41,12 @@ int main()
         }
 
         fprintf(stderr, "syscall:%ld (RDI: %ld, RSI: %ld, RDX: %ld, RCX: %ld, R8: %ld, R9: %ld)\n",
-                buffer->rax,
-                (long)buffer->rdi, (long)buffer->rsi, (long)buffer->rdx,
-                (long)buffer->rcx, (long)buffer->r8,  (long)buffer->r9);
+                (long)gbuffer->rax,
+                (long)gbuffer->rdi, (long)gbuffer->rsi, (long)gbuffer->rdx,
+                (long)gbuffer->rcx, (long)gbuffer->r8,  (long)gbuffer->r9);
         
         /* remote syscall */
-        pbuffer->rax = syscall(buffer->rax, buffer->rdi, buffer->rsi, buffer->rdx, buffer->rcx, buffer->r8, buffer->r9);
+        pbuffer->rax = syscall(gbuffer->rax, gbuffer->rdi, gbuffer->rsi, gbuffer->rdx, gbuffer->rcx, gbuffer->r8, gbuffer->r9);
 
         /* get remote syscall result to write buffer */
         pbuffer->errno_num = errno;
