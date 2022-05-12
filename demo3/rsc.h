@@ -22,7 +22,7 @@
 #include <sys/types.h>
 
 
-#define RSC_MAX_ERRNO_SIZE 1000
+#define RSC_MAX_ERRNO_SIZE 100
 #define NR_GETPID 39
 #define RSC_REDIRECT_SYSCALL 10000
 
@@ -40,8 +40,8 @@ struct syscall_para {
 /* 系统调用结果返回 */
 struct syscall_return {
     unsigned long long int rax;
-    int errno_num;
-    char errno_info[RSC_MAX_ERRNO_SIZE];
+    int errno;
+    char ebuffer[RSC_MAX_ERRNO_SIZE];
 };
 
 #define FATAL(...) \
