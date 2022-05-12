@@ -20,12 +20,16 @@ int main(int argc, char **argv)
 
     /* Create and initial write message buffer */
     struct syscall_para * pbuffer = NULL;
-    pbuffer = (struct syscall_para *)malloc(sizeof(struct syscall_para));
+    if ((pbuffer = (struct syscall_para *)malloc(sizeof(struct syscall_para))) == NULL){
+        FATAL("malloc failure in pbuffer!\n");
+    }
     memset(pbuffer, 0, sizeof(struct syscall_para));
 
     /* Create and initial read message buffer */
     struct syscall_return * gbuffer = NULL;
-    gbuffer = (struct syscall_return *)malloc(sizeof(struct syscall_return));
+    if((gbuffer = (struct syscall_return *)malloc(sizeof(struct syscall_return))) == NULL) {
+        FATAL("malloc failure in gbuffer!\n");
+    }
     memset(gbuffer, 0, sizeof(struct syscall_return));
 
     /* Fork a child process to execute target program */
@@ -62,9 +66,11 @@ int main(int argc, char **argv)
         if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1)
             FATAL("%s", strerror(errno));
         long syscall = regs.orig_rax;
+        printf("now syscall: %d\n", syscall);
 
         /* handle specific syscall(now is getpid(), syscall number is 39) */
         if(syscall == NR_GETPID){
+            int iret = 0;
             /* set remote syscall paraments */
             pbuffer->rax = regs.orig_rax;
             pbuffer->rdx = regs.rdx;
@@ -74,22 +80,21 @@ int main(int argc, char **argv)
             pbuffer->r8 = regs.r8;
             pbuffer->r9 = regs.r9;
 
-            /* remote syscall apply */
-            if ((write(client->fd, (struct syscall_para *)&pbuffer, sizeof(struct syscall_para))) < 0)
+            /* remote syscall request */
+            if ((iret = (send(client->fd, (struct syscall_para *)pbuffer, sizeof(struct syscall_para), 0))) < 0)
             {
                 perror("perror: ");
                 printf("RSC: client write error!\n");
                 break;
             }
-
+            printf("iret:%d\n", iret);
             /* get remote syscall result */
-            if ((read(client->fd, (struct syscall_return *)&gbuffer, sizeof(struct syscall_return))) < 0)
+            if (((iret = recv(client->fd, (struct syscall_return *)gbuffer, sizeof(struct syscall_return), 0))) < 0)
             {
                 perror("perror: ");
                 printf("RSC: client read error!\n");
                 break;
             }
-
             /* continue local syscall exxcute, but syscall number redirect to a nonexistent syscall */
             regs.orig_rax = RSC_REDIRECT_SYSCALL;
             if (ptrace(PTRACE_SETREGS, pid, 0, &regs) == -1){
@@ -112,7 +117,6 @@ int main(int argc, char **argv)
                     exit(regs.rdi);
                 FATAL("%s", strerror(errno));
             }
-
             continue;
         }
         

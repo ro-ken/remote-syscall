@@ -38,7 +38,8 @@ void fill_socket_server(struct rsc_socket_server * server)
     memset(&server->server_addr, 0, sizeof(struct sockaddr));
 
     server->server_addr.sin_family = AF_INET;
-    server->server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    // server->server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server->server_addr.sin_addr.s_addr = inet_addr(RSC_SERVER_IP);
     server->server_addr.sin_port = htons(RSC_SERVER_PORT);
 
     memset(&server->client_addr, 0, sizeof(struct sockaddr));

@@ -4,6 +4,7 @@
 int main()
 {
     /* inital rsc_socket_server struct */
+    fprintf(stderr, "server pid: %d\n", getpid());
     fprintf(stderr, "RSC: initial socket ...\n");
     struct rsc_socket_server *server = NULL;
     server = (struct rsc_socket_server *)malloc(sizeof(struct rsc_socket_server));
@@ -25,21 +26,26 @@ int main()
     /* create read/write message buffer */
     struct syscall_para * gbuffer = NULL;
     gbuffer = (struct syscall_para *)malloc(sizeof(struct syscall_para));
+    if ((gbuffer = (struct syscall_para *)malloc(sizeof(struct syscall_para))) == NULL){
+        FATAL("RSC: malloc failure in gbuffer!\n");
+    }
     memset(gbuffer, 0, sizeof(struct syscall_para));
 
     struct syscall_return * pbuffer = NULL;
-    pbuffer = (struct syscall_return *)malloc(sizeof(struct syscall_return));
+    if ((pbuffer = (struct syscall_return *)malloc(sizeof(struct syscall_return))) == NULL) {
+        FATAL("RSC: malloc failure in pbuffer!\n");
+    }
     memset(pbuffer, 0, sizeof(struct syscall_return));
 
     /* loop handle client message */
-    int iret;
+    int iret=0;
     for(;;){
-        if ((iret = read(server->client_fd, (struct syscall_para *)&gbuffer, sizeof(struct syscall_para)) < 0)){
+        if ((iret = recv(server->client_fd, (struct syscall_para *)gbuffer, 112, 0)) < 0){
             perror("perror: ");
-            printf("RSC: server read error!\n");
+            fprintf(stderr, "RSC: server read error!\n");
             break;
         }
-
+        printf("iret:%d\n", iret);
         fprintf(stderr, "syscall:%ld (RDI: %ld, RSI: %ld, RDX: %ld, RCX: %ld, R8: %ld, R9: %ld)\n",
                 (long)gbuffer->rax,
                 (long)gbuffer->rdi, (long)gbuffer->rsi, (long)gbuffer->rdx,
@@ -53,9 +59,9 @@ int main()
         strcpy(pbuffer->ebuffer, strerror(errno));
 
         /* return remote syscall result */
-        if ((iret = write(server->client_fd, (struct syscall_return *)&pbuffer, sizeof(struct syscall_return)) < 0)){
+        if ((iret = send(server->client_fd, (struct syscall_return *)pbuffer, sizeof(struct syscall_return), 0) < 0)){
             perror("perror: ");
-            printf("RSC: server write error!\n");
+            fprintf(stderr, "RSC: server write error!\n");
             break;
         }
     }
