@@ -40,7 +40,7 @@ struct syscall_para {
 /* 系统调用结果返回 */
 struct syscall_return {
     unsigned long long int rax;
-    int errno;
+    int enumber;
     char ebuffer[RSC_MAX_ERRNO_SIZE];
 };
 

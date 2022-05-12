@@ -49,8 +49,8 @@ int main()
         pbuffer->rax = syscall(gbuffer->rax, gbuffer->rdi, gbuffer->rsi, gbuffer->rdx, gbuffer->rcx, gbuffer->r8, gbuffer->r9);
 
         /* get remote syscall result to write buffer */
-        pbuffer->errno = errno;
-        strcpy(pbuffer->ebuffer, strerror(errno););
+        pbuffer->enumber = errno;
+        strcpy(pbuffer->ebuffer, strerror(errno));
 
         /* return remote syscall result */
         if ((iret = write(server->client_fd, (struct syscall_return *)&pbuffer, sizeof(struct syscall_return)) < 0)){
