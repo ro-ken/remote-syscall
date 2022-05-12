@@ -7,7 +7,7 @@ void fill_socket_client(struct rsc_socket_client * client)
     memset(&client->server_addr, 0, sizeof(struct sockaddr_in));
 
     client->server_addr.sin_family = AF_INET;
-    client->server_addr.sin_addr.s_addr = inet_addr(RSC_SERVER_IP);
+    client->server_addr.sin_addr.s_addr = inet_addr(RSC_CLIENT_IP);
     /* Note: here must use htons for set port, can't use htonl */
     client->server_addr.sin_port = htons(RSC_SERVER_PORT);
 }

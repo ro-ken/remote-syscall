@@ -4,8 +4,9 @@
 #include "rsc.h"
 
 /* tcp socket paraments */
-#define RSC_SERVER_IP "120.48.30.70"
-#define RSC_SERVER_PORT 10000
+#define RSC_SERVER_IP "172.21.31.222"
+#define RSC_CLIENT_IP "182.92.218.100"
+#define RSC_SERVER_PORT 40000
 #define RSC_MAX_CONNECTS 5
 
 /* socket server struct */
