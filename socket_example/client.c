@@ -15,11 +15,11 @@ int main(){
     serv_addr.sin_port = htons(40000);  //端口
     connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
    
-    //读取服务器传回的数据
-    char buffer[40];
-    read(sock, buffer, sizeof(buffer)-1);
-   
-    printf("Message form server: %s\n", buffer);
+    char str[4] = "www";
+    while(1){
+        write(sock, str, sizeof(str));
+        sleep(3);
+    }
    
     //关闭套接字
     close(sock);
