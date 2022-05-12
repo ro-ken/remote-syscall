@@ -1,60 +1,37 @@
-/* C Standard Library */
-#include <errno.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <stddef.h>
 #include <string.h>
-
-/* POSIX */
+#include <stdlib.h>
 #include <unistd.h>
-#include <sys/user.h>
-#include <sys/wait.h>
-#include <sys/syscall.h>
-#include <sys/ptrace.h>
-
-/* Linux */
-#include <sys/socket.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
-#include <sys/types.h>
-/* tcp socket paraments */
-
-#define RSC_SERVER_IP "192.168.16.4"
-#define RSC_CLIENT_IP "120.48.30.70"
-#define RSC_SERVER_PORT 40000
-#define RSC_MAX_CONNECTS 5
 
 
 int main(){
-    int server_fd = 0, client_fd = 0;
-    struct sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(struct sockaddr_in));
+    //创建套接字
+    int serv_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0 ){
-        perror("[error]");
-    }
-    server_addr.sin_family = AF_INET;
-    // server->server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_addr.sin_addr.s_addr = inet_addr(RSC_SERVER_IP);
-    server_addr.sin_port = htons(RSC_SERVER_PORT);
+    //将套接字和IP、端口绑定
+    struct sockaddr_in serv_addr;
+    memset(&serv_addr, 0, sizeof(serv_addr));  //每个字节都用0填充
 
-    if (bind(server_fd, (struct sockaddr *)&server_addr, (socklen_t)sizeof(struct sockaddr)) < 0) {
-        perror("[error]");
-    }
+    serv_addr.sin_family = AF_INET;  //使用IPv4地址
+    serv_addr.sin_addr.s_addr = inet_addr("192.168.16.4");  //具体的IP地址
+    serv_addr.sin_port = htons(40000);  //端口
+    bind(serv_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
 
-    if (listen(server_fd, RSC_MAX_CONNECTS) < 0 ){
-        perror("[error]:");
-    }
-    
-    socklen_t addrlen = sizeof(struct sockaddr);
-    if (client_fd = accept(server_fd, (struct sockaddr *)&server_addr, &addrlen) < 0) {
-        perror("[error]:");
-    }
-
-    char buffer[10];
-    memset(buffer, 0, sizeof(char)*10);
-    while(1){
-        read(client_fd,buffer, sizeof(char)*10);
-        printf("read:%s\n", buffer);
-    }
+    //进入监听状态，等待用户发起请求
+    listen(serv_sock, 20);
+    //接收客户端请求
+    struct sockaddr_in clnt_addr;
+    socklen_t clnt_addr_size = sizeof(clnt_addr);
+    int clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_addr, &clnt_addr_size);
+    //向客户端发送数据
+    char str[] = "Hello World!";
+    write(clnt_sock, str, sizeof(str));
+   
+    //关闭套接字
+    close(clnt_sock);
+    close(serv_sock);
+    return 0;
 }
