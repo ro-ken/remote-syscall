@@ -18,7 +18,7 @@ int main(){
     char str[4] = "www";
     while(1){
         write(sock, str, sizeof(str));
-        sleep(3);
+        sleep(100);
     }
    
     //关闭套接字
