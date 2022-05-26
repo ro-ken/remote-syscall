@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
+#include <signal.h>
 
 /* POSIX */
 #include <unistd.h>
@@ -27,6 +28,7 @@
 #define RSC_POINTER_SIZE    sizeof(struct rsc_pointer)
 #define RSC_RETURN_HEADER   sizeof(struct rsc_return_header)
 #define RSC_IO_POINTER_SIZE sizeof(struct rsc_io_pointer)
+
 
 // 系统调用请求头 
 struct rsc_header {
@@ -98,6 +100,49 @@ struct pointer_manager {
 
     char * p_addr_in;
     char * p_addr_out;
+}
+
+// 系统调用位示图
+#define LLSIZE (sizeof(unsigned long long int) * 8)
+#define SET_MASK 0x0000000000000001
+#define ISSET_MASK 0xfffffffffffffffe
+#define RESET_MASK 0xfffffffffffffffe
+
+void set_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
+    if (syscall < 0 && syscall > 547){
+        return;
+    }
+    int base = syscall / LLSIZE;    // 获取基址
+    int surplus = syscall % LLSIZE; // 余值
+
+    unsigned long long int * base_p = syscall_bitmap + base;
+    unsigned long long int base_n = *base_p;
+    *base_p = base_n | ((( base_n >> surplus) | SET_MASK) << surplus);
+}
+
+int is_set(unsigned long long int * syscall_bitmap, unsigned int syscall){
+    if (syscall < 0 && syscall > 547){
+        return -1;
+    }
+    int base = syscall / LLSIZE;    // 获取基址
+    int surplus = syscall % LLSIZE; // 余值
+
+    unsigned long long int * base_p = syscall_bitmap + base;
+    unsigned long long int base_n = *base_p;
+    base_n = (base_n >> surplus) | ISSET_MASK;
+    return base_n==0xffffffffffffffff?1:-1;
+}
+
+void reset_bitmap(){
+    if (syscall < 0 && syscall > 547){
+        return;
+    }
+    int base = syscall / LLSIZE;    // 获取基址
+    int surplus = syscall % LLSIZE; // 余值
+
+    unsigned long long int * base_p = syscall_bitmap + base;
+    unsigned long long int base_n = *base_p;
+    *base_p = base_n | ((( base_n >> surplus) & RESET_MASK) << surplus);
 }
 
 #endif
