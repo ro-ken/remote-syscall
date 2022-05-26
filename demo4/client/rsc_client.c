@@ -3,29 +3,23 @@
 
 
 // 远程系统调用请求编组
-char * syscall_request_encode(struct user_regs_struct * user_regs, unsigned int * size){
-    unsigned int buffer_size = 0;   // 附加缓冲区大小
-    char * buffer = NULL;           // 附加缓冲区
+char * syscall_request_encode(struct rsc_header *header, struct rsc_regs *regs, struct user_regs_struct *user_regs){
+    unsigned int buffer_size = 0;   // 附加数据缓冲区大小
+    char * buffer = NULL;           // 附加数据缓冲区
     char * syscall_request = NULL;  // 远程系统调用请求
 
-    // 定义局部变量，存放部分远程系统调用请求内容
-    struct rsc_header header;
-    struct rsc_regs regs;
-    memset(&header, 0, RSC_HEADER_SIZE);
-    memset(&regs, 0, RSC_REGS_SIZE);
-
     // 初始化 struct rsc_header 和 struct rsc_regs 
-    header.syscall = user_regs.orig_rax;
-    regs.rax = user_regs.rax;
-    regs.rdi = user_regs.rdi;
-    regs.rsi = user_regs.rsi;
-    regs.rdx = user_regs.rdx;
-    regs.r10 = user_regs.r10;
-    regs.r8 = user_regs.r8;
-    regs.r9 = user_regs.r9;
+    header->syscall = user_regs->orig_rax;
+    regs->rax = user_regs->rax;
+    regs->rdi = user_regs->rdi;
+    regs->rsi = user_regs->rsi;
+    regs->rdx = user_regs->rdx;
+    regs->r10 = user_regs->r10;
+    regs->r8 = user_regs->r8;
+    regs->r9 = user_regs->r9;
 
-    // 处理指针参数, 根据系统调用分类填充附加缓冲区，返回附加缓冲区指针
-    buffer = syscall_pointer_handle(&header, &regs, &buffer_size);
+    // 处理指针参数, 根据系统调用分类填充附加数据缓冲区，返回附加数据缓冲区指针
+    buffer = pointer_encode_client(header, regs, &buffer_size);
 
     // 填充远程系统调用请求
     *size = header->size = buffer_size + RSC_HEADER_SIZE + RSC_REGS_SIZE;
@@ -44,32 +38,31 @@ char * syscall_request_encode(struct user_regs_struct * user_regs, unsigned int 
 }
 
 /* 系统调用指针参数处理 */
-char * syscall_pointer_handle(struct rsc_header * header, struct rsc_regs * regs, unsigned int * buffer_size){
-    unsigned int syscall = (unsigned int)header->syscall;   // 系统调用号
+char * pointer_client(struct rsc_header * header, struct rsc_regs * regs, unsigned int * buffer_size){
     char * buffer = NULL;                                   // 附加数据缓冲区
 
     /* 处理带输入指针参数的系统调用 */
-    switch(syscall) {
+    switch(header->syscall) {
         case 1: {
-            header->p_flag = INPUT_POINTER;
-            buffer = input_pointer_handle(2, regs.rdx, regs.rsi, buffer_size);
+            header->p_flag = IN_POINTER;
+            buffer = in_pointer_encode_client(2, regs.rdx, regs.rsi, buffer_size);
         }
         case 2: {
             header->p_flag = INPUT_POINTER;
             buffer = input_pointer_handle(1, strlen((char *)regs.rdi), regs.rdi, buffer_size);
         } 
-        case 18: {
-            header->p_flag = INPUT_POINTER;
-            buffer = input_pointer_handle(2, regs.rdx, regs.rsi, buffer_size);
-        }
-        case 87: {
-            header->p_flag = INPUT_POINTER;
-            buffer = input_pointer_handle(1, strlen((char *)regs.rdi), regs.rdi, buffer_size);
-        }
-        case 237: {
-            header->p_flag = INPUT_POINTER;
-            buffer = input_pointer_handle(2, strlen((char *)regs.rsi), regs.rsi, buffer_size);
-        }
+        // case 18: {
+        //     header->p_flag = INPUT_POINTER;
+        //     buffer = input_pointer_handle(2, regs.rdx, regs.rsi, buffer_size);
+        // }
+        // case 87: {
+        //     header->p_flag = INPUT_POINTER;
+        //     buffer = input_pointer_handle(1, strlen((char *)regs.rdi), regs.rdi, buffer_size);
+        // }
+        // case 237: {
+        //     header->p_flag = INPUT_POINTER;
+        //     buffer = input_pointer_handle(2, strlen((char *)regs.rsi), regs.rsi, buffer_size);
+        // }
     }
 
     /* 处理带输出指针参数的系统调用 */
@@ -131,7 +124,7 @@ char * output_pointer_handle(unsigned int p_location, unsigned int p_count, unsi
 }
 
 /* 带输入指针参数的系统调用处理 */
-char * input_pointer_handle(unsigned int p_location, unsigned int p_count, unsigned long long int addr, unsigned int * buffer_size){
+char * in_pointer_encode_client(unsigned int p_location, unsigned int p_count, unsigned long long int addr, unsigned int * buffer_size){
     // 使用 struct rsc_pointer 描述指针参数信息
     struct rsc_pointer pointer;
     memset(&pointer, 0, sizeof(pointer));

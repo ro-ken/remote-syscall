@@ -1,6 +1,8 @@
-#include "include/rsc_include.h"
+#include "../include/rsc_include.h"
+#include "../include/rsc_include_client.h"
 
-unsigned long long int syscall_bitmap[9] = {15, 0, 0, 0, 1, 0, 0, 0, 0};
+// 已实现的系统调用位示图, 目前已实现：0, 1, 2, 3, 257
+unsigned long long int syscall_bitmap[9] = {15, 0, 0, 0, 3, 0, 0, 0, 0};
 
 int main(int argc, char **argv)
 {
@@ -29,7 +31,8 @@ int main(int argc, char **argv)
             FATAL("%s", strerror(errno));
         /* child */
         case 0:{
-            execvp(argv[3], argv + 3);
+            ptrace(PTRACE_TRACEME, 0, 0, 0);
+            execvp(argv[1], argv + 1);
             FATAL("%s", strerror(errno));
         }
     }
@@ -37,24 +40,49 @@ int main(int argc, char **argv)
     // 等待子进程因为PTRACE_SYSCALL而第一次暂停
     waitpid(pid, 0, 0);
 
-    // 当子进程结束时，结束父进程
+    // 父死，子随
     ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);
 
     for(;;){
-        
-    }
-    //连接成功进行收数据
-    char buf[1024];
-    while(1)
-    {
-        printf("send###");
-        fflush(stdout);
+        // syscall-enter_stop
+        if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1){
+            printf("[client][ptrace]: errno, %d, strerror: %s, first syscall\n", errno, strerror(errno));
+            return -1;
+        }
+        if (waitpid(pid, 0, 0) == -1){
+            printf("[client][ptrace]: errno, %d, strerror: %s, first waitpid\n", errno, strerror(errno));
+            return -1;
+        }
 
-        ssize_t _s = read(0, buf, sizeof(buf)-1);
-        buf[_s] = 0;
-        write(sock, buf, _s);
+        struct user_regs_struct u_regs;
+        if (ptrace(PTRACE_GETREGS, pid, 0, &u_regs) == -1){
+            printf("[client][ptrace]: errno, %d, strerror: %s\n", errno, strerror(errno));
+            return -1;
+        }
+        
+        // syscall-exit_stop
+        if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1){
+            printf("[client][ptrace]: errno, %d, strerror: %s\n", errno, strerror(errno));
+            return -1;
+        }
+        if (waitpid(pid, 0, 0) == -1){
+            printf("[client][ptrace]: errno, %d, strerror: %s\n", errno, strerror(errno));
+            return -1;
+        }
+
     }
-    //close(sock);
+    // //连接成功进行收数据
+    // char buf[1024];
+    // while(1)
+    // {
+    //     printf("send###");
+    //     fflush(stdout);
+
+    //     ssize_t _s = read(0, buf, sizeof(buf)-1);
+    //     buf[_s] = 0;
+    //     write(sock, buf, _s);
+    // }
+    // //close(sock);
 
     return 0;
 }

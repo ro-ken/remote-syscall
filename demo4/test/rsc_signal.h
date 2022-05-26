@@ -41,9 +41,4 @@ void signal_destory(){
     sem_destroy(&tracer_detach);
 }
 
-int create_sem_set(int nums);
-int get_sem_set(int nums);
-int init_sem_set(int sem_id, int which, int val);
-int P(int sem_id);
-int V(int sem_id);
-int destroy(int sem_id);
+void 

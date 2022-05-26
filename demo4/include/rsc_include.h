@@ -52,7 +52,7 @@ struct rsc_regs {
 struct rsc_pointer {
     unsigned int p_location;        // 指针参数是系统调用中的第几个参数(从左到右，从1开始计算)
     unsigned int p_count;           // 指针参数要操作的字节数，比如 sys_read 读 count 个字节到 buf 指向的内存中
-}
+};
 
 // 远程系统调用执行结果头 
 struct rsc_return_header {
@@ -72,11 +72,11 @@ struct rsc_return_header {
     } while (0)
 
 /* 系统调用分类 */
-#define NO_POINTER 0                // 不带指针参数的系统调用
-#define INPUT_POINTER 1             // 带输入指针参数的系统调用
-#define OUTPUT_POINTER 2            // 带输出指针参数的系统调用
-#define IO_POINTER 3                // 带输入输出指针参数的系统调用
-#define INPUT_SEQUENCE_POINTER 4    // 带连续输入指针参数的系统调用, 如 sys_poll, 使用结构体数据传递数据
+#define NO_POINTER              0  // 不带指针参数的系统调用
+#define IN_POINTER              1  // 带输入指针参数的系统调用
+#define OUT_POINTER             2  // 带输出指针参数的系统调用
+#define IO_POINTER              3  // 带输入输出指针参数的系统调用
+#define IN_SEQUENCE_POINTER     4  // 带连续输入指针参数的系统调用, 如 sys_poll, 使用结构体数据传递数据
 
 // 带输入输出的系统调用的指针参数描述信息
 struct rsc_io_pointer {
@@ -100,7 +100,7 @@ struct pointer_manager {
 
     char * p_addr_in;
     char * p_addr_out;
-}
+};
 
 // 系统调用位示图
 #define LLSIZE (sizeof(unsigned long long int) * 8)
@@ -133,7 +133,7 @@ int is_set(unsigned long long int * syscall_bitmap, unsigned int syscall){
     return base_n==0xffffffffffffffff?1:-1;
 }
 
-void reset_bitmap(){
+void reset_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     if (syscall < 0 && syscall > 547){
         return;
     }

@@ -37,7 +37,6 @@
 //     *tbuffer = (char *)malloc(sizeof(struct test_a));
 // }
 
-unsigned long long int syscall_bitmap[9];
 #define LLSIZE (sizeof(unsigned long long int) * 8)
 #define SET_MASK 0x0000000000000001
 #define ISSET_MASK 0xfffffffffffffffe
@@ -68,7 +67,7 @@ int is_set(unsigned long long int * syscall_bitmap, unsigned int syscall){
     return base_n==0xffffffffffffffff?1:-1;
 }
 
-void reset_bitmap(){
+void reset_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     if (syscall < 0 && syscall > 547){
         return;
     }
@@ -79,6 +78,9 @@ void reset_bitmap(){
     unsigned long long int base_n = *base_p;
     *base_p = base_n | ((( base_n >> surplus) & RESET_MASK) << surplus);
 }
+
+static unsigned long long int syscall_bitmap[9] = {15, 0, 0, 1, 0, 0, 0, 0, 0};
+
 int main()
 {
     // struct test_a a;
@@ -122,14 +124,22 @@ int main()
     // char * a = "huomax is a shuaige!";
     // printf("%s: %lld\n", a, (unsigned long long int)a);
     /* 测试位图 */
-    memset(syscall_bitmap, 0, sizeof(unsigned long long int) * 9);
-    set_bitmap(syscall_bitmap, 2);
-    if(is_set(syscall_bitmap, 2) > 0){
-        printf("OK!\n");
-    }
+    // memset(syscall_bitmap, 0, sizeof(unsigned long long int) * 9);
+    // set_bitmap(syscall_bitmap, 2);
+    // if(is_set(syscall_bitmap, 2) > 0){
+    //     printf("OK!\n");
+    // }
     printf("test bitmap_1: %lld\n", *syscall_bitmap);
+    set_bitmap(syscall_bitmap, 257);
     printf("test bitmap_2: %lld\n", *(syscall_bitmap+1));
     printf("test bitmap_3: %lld\n", *(syscall_bitmap+2));
+    printf("test bitmap_4: %lld\n", *(syscall_bitmap+3));
+    printf("test bitmap_5: %lld\n", *(syscall_bitmap+4));
+    printf("test bitmap_6: %lld\n", *(syscall_bitmap+5));
+    printf("test bitmap_7: %lld\n", *(syscall_bitmap+6));
+    printf("test bitmap_8: %lld\n", *(syscall_bitmap+7));
+
+    printf("0:%d, 1:%d, 2:%d, 3:%d, 257:%d\n", is_set(syscall_bitmap, 0), is_set(syscall_bitmap, 1), is_set(syscall_bitmap, 2), is_set(syscall_bitmap, 3), is_set(syscall_bitmap, 257));
 
     return 0;
 }
