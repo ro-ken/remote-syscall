@@ -24,44 +24,13 @@
 
 // 宏定义远程系统调用传递的数据结构长度 
 #define RSC_HEADER_SIZE     sizeof(struct rsc_header)
-#define RSC_REGS_SIZE       sizeof(struct rsc_regs)
-#define RSC_POINTER_SIZE    sizeof(struct rsc_pointer)
-#define RSC_RETURN_HEADER   sizeof(struct rsc_return_header)
-#define RSC_IO_POINTER_SIZE sizeof(struct rsc_io_pointer)
 
-
-// 系统调用请求头 
-struct rsc_header {
-    unsigned long long int syscall;     // 系统调用号
-    unsigned int p_flag;              	// 系统调用分类
-    unsigned int size;					// 远程系统调用请求长度, 字节为单位
-};
-
-// 系统调用寄存器参数
-struct rsc_regs {
-    unsigned long long int rax;
-    unsigned long long int rdi;
-    unsigned long long int rsi;
-    unsigned long long int rdx;
-    unsigned long long int r10;
-    unsigned long long int r8;
-    unsigned long long int r9;
-};
-
-// 指针参数描述信息
-struct rsc_pointer {
-    unsigned int p_location;        // 指针参数是系统调用中的第几个参数(从左到右，从1开始计算)
-    unsigned int p_count;           // 指针参数要操作的字节数，比如 sys_read 读 count 个字节到 buf 指向的内存中
-};
-
-// 远程系统调用执行结果头 
-struct rsc_return_header {
-    unsigned long long int syscall;     // 系统调用号
-    unsigned int p_flag;                // 系统调用类型
-    unsigned int size;                  // 远程系统调用请求长度, 字节为单位
-    unsigned int error;                 // 全局变量 errno
-    unsigned int error_size;            // 出错信息长度(如果有的话)
-};
+// 系统调用分类 
+#define NO_POINTER              0  // 不带指针参数的系统调用
+#define IN_POINTER              1  // 带输入指针参数的系统调用
+#define OUT_POINTER             2  // 带输出指针参数的系统调用
+#define IO_POINTER              3  // 带输入输出指针参数的系统调用
+#define IN_SEQUENCE_POINTER     4  // 带连续输入指针参数的系统调用, 如 sys_poll, 使用结构体数据传递数据
 
 // 程序出现严重错误，直接结束程序
 #define FATAL(...) \
@@ -71,43 +40,39 @@ struct rsc_return_header {
         exit(EXIT_FAILURE); \
     } while (0)
 
-/* 系统调用分类 */
-#define NO_POINTER              0  // 不带指针参数的系统调用
-#define IN_POINTER              1  // 带输入指针参数的系统调用
-#define OUT_POINTER             2  // 带输出指针参数的系统调用
-#define IO_POINTER              3  // 带输入输出指针参数的系统调用
-#define IN_SEQUENCE_POINTER     4  // 带连续输入指针参数的系统调用, 如 sys_poll, 使用结构体数据传递数据
+// 系统调用请求头 
+struct rsc_header {
+    unsigned long long int syscall;     // 系统调用号
+    unsigned int p_flag;              	// 系统调用分类
+    unsigned int size;					// 远程系统调用请求长度, 字节为单位
+    unsigned int error;                 // 出错信息
 
-// 带输入输出的系统调用的指针参数描述信息
-struct rsc_io_pointer {
-    unsigned int p_location_in;
-    unsigned int p_count_in;
-    unsigned long long int addr_in;
+    // 系统调用传参寄存器
+    unsigned long long int rax;
+    unsigned long long int rdi;
+    unsigned long long int rsi;
+    unsigned long long int rdx;
+    unsigned long long int r10;
+    unsigned long long int r8;
+    unsigned long long int r9;
 
-    unsigned int p_location_out;
-    unsigned int p_count_out;
+    // 系统调用指针参数描述信息
+    unsigned int p_location_in;     // 输入指针所在位置
+    unsigned int p_location_out;    // 输出指针所在位置
+    unsigned int p_count_in;        // 输入指针需要操作的字节数
+    unsigned int p_count_out;       // 输出指针需要操作的字节数
+
+    char * p_addr_in;               // 输入指针指向的内存, 用于服务端进行指针重定向
+    char * p_addr_out;              // 输出指针指向的内存, 用于服务端进行指针重定向
 };
 
-// 指针管理器, 记录远程系统调用请求的指针参数信息以及server为其开辟的缓冲区地址
-struct pointer_manager {
-    unsigned int p_location_in;
-    unsigned int p_location_out;
-
-    unsigned int p_count_in;
-    unsigned int p_count_out;
-
-    unsigned int p_flag;
-
-    char * p_addr_in;
-    char * p_addr_out;
-};
-
-// 系统调用位示图
+/* 系统调用位示图, 用来管理已实现的系统调用(已实现置位1, 否则置位0) */
 #define LLSIZE (sizeof(unsigned long long int) * 8)
 #define SET_MASK 0x0000000000000001
 #define ISSET_MASK 0xfffffffffffffffe
 #define RESET_MASK 0xfffffffffffffffe
 
+// 置位系统调用号对应的位示图bit位
 void set_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     if (syscall < 0 && syscall > 547){
         return;
@@ -120,6 +85,7 @@ void set_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     *base_p = base_n | ((( base_n >> surplus) | SET_MASK) << surplus);
 }
 
+// 查询当前系统调用是否已实现
 int is_set(unsigned long long int * syscall_bitmap, unsigned int syscall){
     if (syscall < 0 && syscall > 547){
         return -1;
@@ -133,6 +99,7 @@ int is_set(unsigned long long int * syscall_bitmap, unsigned int syscall){
     return base_n==0xffffffffffffffff?1:-1;
 }
 
+// 置位系统调用号对应的位示图bit位
 void reset_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     if (syscall < 0 && syscall > 547){
         return;

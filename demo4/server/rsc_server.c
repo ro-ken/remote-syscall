@@ -1,62 +1,39 @@
 #include "include/rsc_include.h"
 #include "include/rsc_include_server.h"
 
-int syscall_request_decode(int sockfd_s, struct rsc_regs * regs, struct pointer_manager * p_manager, unsigned int * syscall){
-    int read_size = 0;
-    int surplus_size = 0;
-    int result = 0;
-    char * buffer = NULL;
-    struct rsc_header header;
-    memset(&header, 0, sizeof(header));
-
-    // 分两次读取远程系统调用请求, 先读取请求头获取整个请求的长度, 再读取剩下的请求体
-    if ((read_size = read(sockfd_s, &header, sizeof(header))) < 0){
-        printf("[server][error]: %d, %s in read header!\n", errno, strerror(errno));
-        return -1;
-    }
-    surplus_size = header.size - sizeof(header);
-    buffer = (char *)malloc(surplus_size);
-    if ((read_size = read(sockfd_s, buffer, surplus_size)) < 0){
-        printf("[server][error]: %d, %s in read surplus syscall request!\n", errno, strerror(errno));
-        return -1;
-    }
-
-    // 提取 struct regs
-    memcpy(regs, buffer, RSC_REGS_SIZE);
-
-    // 获取远程系统调用分类
-    *syscall = header.syscall;
-    p_manager->p_flag = header.p_flag;
-
+int syscall_request_decode(struct rsc_header * header, char * buffer){
     switch (header.p_flag) {
         case 0: {
-            result = no_pointer_server_decode(regs, p_manager);
+            break;
         }
         case 1: {
-            result = in_pointer_server_decode(regs, p_manager);
+            if (in_pointer_decode_server(struct rsc_header * header, char * buffer) < 0){
+                printf("[server][decode][in]: error, will exit!\n");
+                return -1;
+            }
+            break;
         }
         case 2: {
-            result = out_pointer_server_decode(regs, p_manager);
+            if (out_pointer_decode_server(struct rsc_header * header) < 0){
+                printf("[server][decode][out]: error, will exit!\n");
+                return -1;
+            }
+            break;
         }
         case 3: {
-            result = io_pointer_server_decode(regs, p_manager);
+            if (io_pointer_decode_server(struct rsc_header * header, char * buffer) < 0){
+                printf("[server][decode][out]: error, will exit!\n");
+                return -1;
+            }
+            break;
+        }
+        case 4: {
+            break;
         }
     }
-
-    if ( buffer != NULL){
-        free(buffer);
-        buffer = NULL;
-    }
-
-    return 1;
 }
 
-int no_pointer_server_decode(struct rsc_regs * regs, struct pointer_manager * p_manager){
-    p_manager->p_addr_out = p_manager->p_addr_in = NULL;
-    return 1;
-}
-
-int input_pointer_server_decode(struct rsc_regs * regs, struct pointer_manager * p_manager, char * buffer, unsigned int surplus_size){
+int in_pointer_decode_server(struct rsc_header * header, char * buffer){
     struct rsc_pointer pointer;
     memset(&pointer, 0, RSC_POINTER_SIZE);
 
@@ -81,7 +58,7 @@ int input_pointer_server_decode(struct rsc_regs * regs, struct pointer_manager *
     return 1;
 }
 
-int out_pointer_server_decode(struct rsc_regs * regs, struct pointer_manager * p_manager, char * buffer){
+int out_pointer_decode_server(struct rsc_header * header){
     struct rsc_pointer pointer;
     memset(&pointer, 0, RSC_POINTER_SIZE);
 
@@ -105,7 +82,7 @@ int out_pointer_server_decode(struct rsc_regs * regs, struct pointer_manager * p
     return 1;
 }
 
-int io_pointer_server_decode(struct rsc_regs * regs, struct pointer_manager * p_manager, char * buffer){
+int io_pointer_decode_server(struct rsc_header * header, char * buffer){
     struct rsc_io_pointer io_pointer;
     memset(&pointer, 0, RSC_IO_POINTER_SIZE);
 
@@ -158,4 +135,37 @@ int syscall_execute(struct rsc_regs * regs, struct rsc_return_header * return_he
 /* 远程系统调用请求执行结果编组 */
 int syscall_return_encode(int sockfd_s, struct rsc_regs * regs, struct pointer_manager * p_manager, char * syscall_return, unsigned int * syscall){
     
+}
+
+// 建立socket server
+int initial_socket(int port, const char* ip)
+{
+    int sockfd = -1;
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
+        printf("[server]][socket]: errno, %d, strerror: %s, first syscall\n", errno, strerror(errno));
+        return -1;
+    }
+
+    int opt=1;
+    setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
+
+    struct sockaddr_in server;
+    server.sin_family = AF_INET;
+    server.sin_port = htons(port);
+    server.sin_addr.s_addr = inet_addr(ip);
+    socklen_t len = sizeof(server);
+
+    if(bind(sockfd,(struct sockaddr*)&server , len) < 0)
+    {
+        printf("[server]][bind]: errno, %d, strerror: %s, first syscall\n", errno, strerror(errno));
+        return -1;
+    }
+
+    if(listen(sockfd, 5) < 0)    //允许连接的最大数量为5
+    {
+        printf("[server]][listen]: errno, %d, strerror: %s, first syscall\n", errno, strerror(errno));
+        return -1;
+    }
+
+    return sockfd;
 }

@@ -1,97 +1,82 @@
-#include<stdio.h>
-#include<sys/types.h>
-#include<sys/socket.h>
-#include<stdlib.h>
-#include<unistd.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include "../include/rsc_include.h"
+#include "../include/rsc_include_server.h"
 
-int startup(int _port,const char* _ip)
+int main(int argc, char **argv)
 {
-    int sock = socket(AF_INET,SOCK_STREAM,0);
-    if(sock < 0)
-    {
-        perror("socket");
-        exit(1);
+    if (argc <= 1){
+        FATAL("too few arguments: %d", argc);
     }
 
-    int opt=1;
-    setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
-
-    struct sockaddr_in local;
-    local.sin_family = AF_INET;
-    local.sin_port = htons( _port);
-    local.sin_addr.s_addr = inet_addr(_ip);
-    socklen_t len = sizeof(local);
-
-    if(bind(sock,(struct sockaddr*)&local , len) < 0)
-    {
-        perror("bind");
-        exit(2);
-    }
-
-    if(listen(sock, 5) < 0)    //允许连接的最大数量为5
-    {
-        perror("listen");
-        exit(3);
-    }
-
-    return sock;
-}
-
-int main()
-{
-    
-
-    //int listen_sock = startup(atoi(argv[2]),argv[1]);//初始化
-    int listen_sock = startup(8888,"10.211.55.9");
+    int sockfd = initial_socket(atoi(argv[2]),argv[1]);
     //用来接收客户端的socket地址结构体
-    struct sockaddr_in remote;
+    struct sockaddr_in client;
     socklen_t len = sizeof(struct sockaddr_in);
 
     while(1)
     {
-        int sock = accept(listen_sock, (struct sockaddr*)&remote, &len);
-        if(sock < 0)
+        int sockfd_c = -1;
+        accept(sockfd, (struct sockaddr*)&client, &len);
+        if (accept(sockfd, (struct sockaddr*)&client, &len) < 0)
         {
-            perror("accept");
-            continue;
+            printf("[server][accept]: errno, %d, strerror: %s, first waitpid\n", errno, strerror(errno));
+            return -1;
         }
 
         //每次建立一个连接后fork出一个子进程进行收发数据
-        pid_t id = fork();
-        if(id > 0)
-        {//father
-            close(sock);
-        //    while(waitpid(-1, NULL, WNOHANG) > 0);
-        }
-        else if(id == 0)
-        {//child
-            //printf("get a client, ip:%s, port:%d\n",inet_ntoa(remote.sin_addr),ntohs(remote.sin_port));
-            if(fork() > 0)
-                exit(0);
-            //close(listen_sock);
-            char buf[1024];
-            while(1)
-            {
-                ssize_t _s = read(sock, buf, sizeof(buf)-1);
-                if(_s > 0)
+        pid_t pid = fork();
+        switch (pid) {
+            /* error */
+            case -1: 
+                FATAL("%s", strerror(errno));
+            /* child */
+            case 0:{
+                if(fork() > 0) exit(0);
+
+                //close(listen_sock);
+                char * buffer = NULL;
+                char * syscall_result = NULL;
+                struct rsc_header header;
+                memset(&header, 0, RSC_HEADER_SIZE);
+
+                while(1)
                 {
-                    buf[_s] = 0;
-                    printf("client:%s",buf);
-                }
-                else
-                {
-                    printf("client is quit!\n");
-                    break;
+                    // get rscq(remote syscall request)
+                    if(read(sockfd_c, &header, RSC_HEADER_SIZE) < 0){
+                        printf("[server][read]: errno, %d, strerror: %s, first waitpid\n", errno, strerror(errno));
+                        return -1;
+                    }
+                    if (header.size > RSC_HEADER_SIZE){
+                        buffer = (char *)malloc(sizeof(char) * (header.size - RSC_HEADER_SIZE));
+                        if(read(sockfd_c, buffer, header.size - RSC_HEADER_SIZE) < 0){
+                            printf("[server][read]: errno, %d, strerror: %s, first waitpid\n", errno, strerror(errno));
+                            return -1;
+                        }
+                    }
+
+                    // rscq(remote syscall request) decode
+                    if (syscall_request_decode(&header, buffer) < 0){
+                            printf("[server][decode]: error, will exit!\n");
+                            return -1;
+                    }
+
+                    // execute rscq
+                    if (syscall_request_execute(&header) < 0){
+                            printf("[server][execute]: error, will exit!\n");
+                            return -1;
+                    }
+
+                    // rscq result encode
+                    if (syscall_result_encode(&header) < 0){
+                            printf("[server][execute]: error, will exit!\n");
+                            return -1;
+                    }
+                    // return rscq result
                 }
             }
         }
-        else
-        {
-            perror("fork");
-            return 2;
-        }
+
+        close(sock);
+        // while(waitpid(-1, NULL, WNOHANG) > 0);
     }
     return 0;
 }
