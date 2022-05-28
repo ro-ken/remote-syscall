@@ -15,8 +15,7 @@ int main(int argc, char **argv)
     while(1)
     {
         int sockfd_c = -1;
-        accept(sockfd, (struct sockaddr*)&client, &len);
-        if (accept(sockfd, (struct sockaddr*)&client, &len) < 0)
+        if (accept(sockfd_c, (struct sockaddr*)&client, &len) < 0)
         {
             printf("[server][accept]: errno, %d, strerror: %s, first waitpid\n", errno, strerror(errno));
             return -1;
@@ -66,11 +65,24 @@ int main(int argc, char **argv)
                     }
 
                     // rscq result encode
-                    if (syscall_result_encode(&header) < 0){
-                            printf("[server][execute]: error, will exit!\n");
-                            return -1;
-                    }
+                    syscall_result = syscall_result_encode(&header);
+
                     // return rscq result
+                    if (write(sockfd_c, syscall_result, header->size) < 0){
+                        printf("[server][socket-write]: errno, %d, strerror: %s\n", errno, strerror(errno));
+                        return -1;
+                    }
+
+                    // Handling the crime scene
+                    free(syscall_result);
+                    if (header->p_addr_in != NULL){
+                        free(header->p_addr_in);
+                    }
+                    if (header->p_addr_out != NULL){
+                        free(header->p_addr_out);
+                    }
+                    memset(&header, 0, RSC_HEADER_SIZE);
+                    buffer = NULL;
                 }
             }
         }

@@ -25,6 +25,9 @@
 // 宏定义远程系统调用传递的数据结构长度 
 #define RSC_HEADER_SIZE     sizeof(struct rsc_header)
 
+// 重定向系统调用
+#define RSC_REDIRECT_SYSCALL 10000
+
 // 系统调用分类 
 #define NO_POINTER              0  // 不带指针参数的系统调用
 #define IN_POINTER              1  // 带输入指针参数的系统调用
@@ -35,9 +38,18 @@
 // 程序出现严重错误，直接结束程序
 #define FATAL(...) \
     do { \
-        fprintf(stderr, "[Remote syscall]: " __VA_ARGS__); \
+        fprintf(stderr, "[%s][%s]: " __VA_ARGS__); \
         fputc('\n', stderr); \
         exit(EXIT_FAILURE); \
+    } while (0)
+
+// 函数出现问题, 解释原因并退出
+#define ERROR(...) \
+    do { \
+        fprintf(stderr, "[%s][%s]: " __VA_ARGS__); \
+        fprintf(stderr, "errno, %d, strerror: %s\n", errno, strerror(errno)); \
+        fputc('\n', stderr); \
+        return -1; \
     } while (0)
 
 // 系统调用请求头 

@@ -129,17 +129,20 @@ int main()
     // if(is_set(syscall_bitmap, 2) > 0){
     //     printf("OK!\n");
     // }
-    printf("test bitmap_1: %lld\n", *syscall_bitmap);
-    set_bitmap(syscall_bitmap, 257);
-    printf("test bitmap_2: %lld\n", *(syscall_bitmap+1));
-    printf("test bitmap_3: %lld\n", *(syscall_bitmap+2));
-    printf("test bitmap_4: %lld\n", *(syscall_bitmap+3));
-    printf("test bitmap_5: %lld\n", *(syscall_bitmap+4));
-    printf("test bitmap_6: %lld\n", *(syscall_bitmap+5));
-    printf("test bitmap_7: %lld\n", *(syscall_bitmap+6));
-    printf("test bitmap_8: %lld\n", *(syscall_bitmap+7));
+    // printf("test bitmap_1: %lld\n", *syscall_bitmap);
+    // set_bitmap(syscall_bitmap, 257);
+    // printf("test bitmap_2: %lld\n", *(syscall_bitmap+1));
+    // printf("test bitmap_3: %lld\n", *(syscall_bitmap+2));
+    // printf("test bitmap_4: %lld\n", *(syscall_bitmap+3));
+    // printf("test bitmap_5: %lld\n", *(syscall_bitmap+4));
+    // printf("test bitmap_6: %lld\n", *(syscall_bitmap+5));
+    // printf("test bitmap_7: %lld\n", *(syscall_bitmap+6));
+    // printf("test bitmap_8: %lld\n", *(syscall_bitmap+7));
 
-    printf("0:%d, 1:%d, 2:%d, 3:%d, 257:%d\n", is_set(syscall_bitmap, 0), is_set(syscall_bitmap, 1), is_set(syscall_bitmap, 2), is_set(syscall_bitmap, 3), is_set(syscall_bitmap, 257));
+    // printf("0:%d, 1:%d, 2:%d, 3:%d, 257:%d\n", is_set(syscall_bitmap, 0), is_set(syscall_bitmap, 1), is_set(syscall_bitmap, 2), is_set(syscall_bitmap, 3), is_set(syscall_bitmap, 257));
+    /* 测试指针长度 */
+    char * test_buffer = "huomax is a very shuaige!";
+    printf("test_buffer length: %ld", sizeof(char *));
 
     return 0;
 }

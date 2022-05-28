@@ -35,6 +35,30 @@ char * syscall_request_encode(struct rsc_header *header, struct user_regs_struct
     return syscall_request;
 }
 
+int syscall_return_decode(struct user_regs_struct * u_regs, struct rsc_header * header, char * syscall_result){
+    switch (header->p_flag) {
+        case 0: {
+            break;
+        }
+        case 1: {
+            break;
+        }
+        case 2: {
+            if (out_pointer_decode_client(u_regs, header, syscall_result) < 0){
+                printf("[client][socket]: %d, %s, in build connect. server ip: %s, server_port is: %d\n", errno, strerror(errno), ip_addr, port);
+                return -1;
+            }
+            break;
+        }
+        case 3: {
+            break;
+        }
+        case 4: {
+            break;
+        }
+    }
+}
+
 // 根据系统调用号处理指针参数
 char * pointer_encode_client(struct rsc_header * header){
     char * buffer = NULL;         // 附加数据缓冲区
@@ -108,6 +132,17 @@ char * out_pointer_encode_client(unsigned int p_location, unsigned int p_count, 
     pointer->p_count_out = p_count;
 
     return NULL;
+}
+
+int out_pointer_decode_client(struct user_regs_struct * u_regs, struct rsc_header * header, char * syscall_result){
+    switch (header->p_location_out) {
+        case 1: memcpy((char *)u_regs->rdi, syscall_result, header->p_count_out); break;
+        case 2: memcpy((char *)u_regs->rsi, syscall_result, header->p_count_out); break;
+        case 3: memcpy((char *)u_regs->rdx, syscall_result, header->p_count_out); break;
+        case 4: memcpy((char *)u_regs->r10, syscall_result, header->p_count_out); break;
+        case 5: memcpy((char *)u_regs->r8, syscall_result, header->p_count_out); break;
+        case 6: memcpy((char *)u_regs->r9, syscall_result, header->p_count_out); break;
+    }
 }
 
 // 在客户端创建一个socket连接，返回socket文件描述符 
