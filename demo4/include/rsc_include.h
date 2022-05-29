@@ -38,7 +38,7 @@
 // 程序出现严重错误，直接结束程序
 #define FATAL(...) \
     do { \
-        fprintf(stderr, "[%s][%s]: " __VA_ARGS__); \
+        fprintf(stderr, ": " __VA_ARGS__); \
         fputc('\n', stderr); \
         exit(EXIT_FAILURE); \
     } while (0)
@@ -46,9 +46,8 @@
 // 函数出现问题, 解释原因并退出
 #define ERROR(...) \
     do { \
-        fprintf(stderr, "[%s][%s]: " __VA_ARGS__); \
+        fprintf(stderr, "" __VA_ARGS__); \
         fprintf(stderr, "errno, %d, strerror: %s\n", errno, strerror(errno)); \
-        fputc('\n', stderr); \
         return -1; \
     } while (0)
 
@@ -83,45 +82,5 @@ struct rsc_header {
 #define SET_MASK 0x0000000000000001
 #define ISSET_MASK 0xfffffffffffffffe
 #define RESET_MASK 0xfffffffffffffffe
-
-// 置位系统调用号对应的位示图bit位
-void set_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
-    if (syscall < 0 && syscall > 547){
-        return;
-    }
-    int base = syscall / LLSIZE;    // 获取基址
-    int surplus = syscall % LLSIZE; // 余值
-
-    unsigned long long int * base_p = syscall_bitmap + base;
-    unsigned long long int base_n = *base_p;
-    *base_p = base_n | ((( base_n >> surplus) | SET_MASK) << surplus);
-}
-
-// 查询当前系统调用是否已实现
-int is_set(unsigned long long int * syscall_bitmap, unsigned int syscall){
-    if (syscall < 0 && syscall > 547){
-        return -1;
-    }
-    int base = syscall / LLSIZE;    // 获取基址
-    int surplus = syscall % LLSIZE; // 余值
-
-    unsigned long long int * base_p = syscall_bitmap + base;
-    unsigned long long int base_n = *base_p;
-    base_n = (base_n >> surplus) | ISSET_MASK;
-    return base_n==0xffffffffffffffff?1:-1;
-}
-
-// 置位系统调用号对应的位示图bit位
-void reset_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
-    if (syscall < 0 && syscall > 547){
-        return;
-    }
-    int base = syscall / LLSIZE;    // 获取基址
-    int surplus = syscall % LLSIZE; // 余值
-
-    unsigned long long int * base_p = syscall_bitmap + base;
-    unsigned long long int base_n = *base_p;
-    *base_p = base_n | ((( base_n >> surplus) & RESET_MASK) << surplus);
-}
 
 #endif

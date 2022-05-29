@@ -1,31 +1,31 @@
-#include "include/rsc_include.h"
-#include "include/rsc_include_server.h"
+#include "../include/rsc_include.h"
+#include "../include/rsc_include_server.h"
 
 int syscall_request_decode(struct rsc_header * header, char * buffer){
-    switch (header.p_flag) {
+    switch (header->p_flag) {
         case 0: {
             break;
         }
         case 1: {
-            if (in_pointer_decode_server(struct rsc_header * header, char * buffer) < 0){
+            if (in_pointer_decode_server(header, buffer) < 0){
                 printf("[server][decode][in]: error, will exit!\n");
                 return -1;
             }
             break;
         }
         case 2: {
-            if (out_pointer_decode_server(struct rsc_header * header) < 0){
+            if (out_pointer_decode_server(header) < 0){
                 printf("[server][decode][out]: error, will exit!\n");
                 return -1;
             }
             break;
         }
         case 3: {
-            if (in_pointer_decode_server(struct rsc_header * header, char * buffer) < 0){
+            if (in_pointer_decode_server(header, buffer) < 0){
                 printf("[server][decode][io-in]: error, will exit!\n");
                 return -1;
             }
-            if (out_pointer_decode_server(struct rsc_header * header) < 0){
+            if (out_pointer_decode_server(header) < 0){
                 printf("[server][decode][io-out]: error, will exit!\n");
                 return -1;
             }
@@ -90,21 +90,21 @@ char * syscall_return_encode(struct rsc_header * header){
         case 0: {
             header->size = RSC_HEADER_SIZE;
             syscall_result = (char *)malloc(sizeof(char *) * RSC_HEADER_SIZE);
-            memcpy(syscall_request, header, RSC_HEADER_SIZE);
+            memcpy(syscall_result, header, RSC_HEADER_SIZE);
             break;
         }
         case 1: {
             header->size = RSC_HEADER_SIZE;
             syscall_result = (char *)malloc(sizeof(char *) * RSC_HEADER_SIZE);
-            memcpy(syscall_request, header, RSC_HEADER_SIZE);
+            memcpy(syscall_result, header, RSC_HEADER_SIZE);
             break;
         }
         case 2: {
-            syscall_result = out_pointer_encode_server(struct rsc_header * header);
+            syscall_result = out_pointer_encode_server(header);
             break;
         }
         case 3: {
-            syscall_result = out_pointer_encode_server(struct rsc_header * header);
+            syscall_result = out_pointer_encode_server(header);
             break;
         }
         case 4: {

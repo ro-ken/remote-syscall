@@ -1,5 +1,5 @@
-#include "rsc.h"
-#include "rsc_syscall_classify.h"
+#include "../include/rsc_include.h"
+#include "../include/rsc_include_client.h"
 
 // 远程系统调用请求编组
 char * syscall_request_encode(struct rsc_header *header, struct user_regs_struct *user_regs){
@@ -22,7 +22,7 @@ char * syscall_request_encode(struct rsc_header *header, struct user_regs_struct
     // 处理不同的指针参数, 返回附加数据缓冲区指针
     buffer = pointer_encode_client(header);
 
-    // 填充 RSCQ(remote syscall request)
+    // 填充 rscq(remote syscall request)
     syscall_request = (char *)malloc(sizeof(char) * header->size);
     memcpy(syscall_request, header, RSC_HEADER_SIZE);
     if (buffer != NULL){
@@ -31,7 +31,6 @@ char * syscall_request_encode(struct rsc_header *header, struct user_regs_struct
         buffer = NULL;
     }
 
-    // 记住之后要 free(syscall_request) 
     return syscall_request;
 }
 
@@ -44,19 +43,19 @@ int syscall_return_decode(struct user_regs_struct * u_regs, struct rsc_header * 
             break;
         }
         case 2: {
-            if (out_pointer_decode_client(u_regs, header, syscall_result) < 0){
-                printf("[client][socket]: %d, %s, in build connect. server ip: %s, server_port is: %d\n", errno, strerror(errno), ip_addr, port);
-                return -1;
-            }
+            if (out_pointer_decode_client(u_regs, header, syscall_result) < 0) ERROR("[%s][%s]: in syscall_return_decode!\n", "client", "out_pointer_decode");
             break;
         }
         case 3: {
+            if (out_pointer_decode_client(u_regs, header, syscall_result) < 0) ERROR("[%s][%s]: in syscall_return_decode!\n", "client", "io_pointer_decode");
             break;
         }
         case 4: {
             break;
         }
     }
+
+    return 1;
 }
 
 // 根据系统调用号处理指针参数
@@ -85,7 +84,7 @@ char * pointer_encode_client(struct rsc_header * header){
     /* 处理带输出指针参数的系统调用 */
     switch(header->syscall) {
         case 0: {
-            header->p_flag = OUTPUT_POINTER;   
+            header->p_flag = OUT_POINTER;   
             buffer = out_pointer_encode_client(2, header->rdx, header);
             break;
         }
@@ -128,8 +127,8 @@ char * in_pointer_encode_client(unsigned int p_location, unsigned int p_count, u
 // 本地端不作为, 服务端需要对 RSCQ 执行结果进行处理
 char * out_pointer_encode_client(unsigned int p_location, unsigned int p_count, struct rsc_header * header){
     header->size = RSC_HEADER_SIZE;
-    pointer->p_location_out = p_location;
-    pointer->p_count_out = p_count;
+    header->p_location_out = p_location;
+    header->p_count_out = p_count;
 
     return NULL;
 }
@@ -143,10 +142,12 @@ int out_pointer_decode_client(struct user_regs_struct * u_regs, struct rsc_heade
         case 5: memcpy((char *)u_regs->r8, syscall_result, header->p_count_out); break;
         case 6: memcpy((char *)u_regs->r9, syscall_result, header->p_count_out); break;
     }
+
+    return 1;
 }
 
 // 在客户端创建一个socket连接，返回socket文件描述符 
-int client_connect_socket(char* ip_addr, int port){
+int socket_connect_client(char* ip_addr, int port){
     struct sockaddr_in server_addr;
     int sockfd = -1;
 
@@ -168,5 +169,42 @@ int client_connect_socket(char* ip_addr, int port){
     return sockfd;
 }
 
+// 置位系统调用号对应的位示图bit位
+void set_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
+    if (syscall < 0 && syscall > 547){
+        return;
+    }
+    int base = syscall / LLSIZE;    // 获取基址
+    int surplus = syscall % LLSIZE; // 余值
 
+    unsigned long long int * base_p = syscall_bitmap + base;
+    unsigned long long int base_n = *base_p;
+    *base_p = base_n | ((( base_n >> surplus) | SET_MASK) << surplus);
+}
 
+// 查询当前系统调用是否已实现
+int is_set(unsigned long long int * syscall_bitmap, unsigned int syscall){
+    if (syscall < 0 && syscall > 547){
+        return -1;
+    }
+    int base = syscall / LLSIZE;    // 获取基址
+    int surplus = syscall % LLSIZE; // 余值
+
+    unsigned long long int * base_p = syscall_bitmap + base;
+    unsigned long long int base_n = *base_p;
+    base_n = (base_n >> surplus) | ISSET_MASK;
+    return base_n==0xffffffffffffffff?1:-1;
+}
+
+// 置位系统调用号对应的位示图bit位
+void reset_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
+    if (syscall < 0 && syscall > 547){
+        return;
+    }
+    int base = syscall / LLSIZE;    // 获取基址
+    int surplus = syscall % LLSIZE; // 余值
+
+    unsigned long long int * base_p = syscall_bitmap + base;
+    unsigned long long int base_n = *base_p;
+    *base_p = base_n | ((( base_n >> surplus) & RESET_MASK) << surplus);
+}

@@ -4,7 +4,7 @@
 int main(int argc, char **argv)
 {
     if (argc <= 1){
-        FATAL("too few arguments: %d", argc);
+        FATAL("[%s][%s]: too few arguments: %d", "server", "arguments", argc);
     }
 
     int sockfd = initial_socket(atoi(argv[2]),argv[1]);
@@ -15,18 +15,14 @@ int main(int argc, char **argv)
     while(1)
     {
         int sockfd_c = -1;
-        if (accept(sockfd_c, (struct sockaddr*)&client, &len) < 0)
-        {
-            printf("[server][accept]: errno, %d, strerror: %s, first waitpid\n", errno, strerror(errno));
-            return -1;
-        }
+        if (accept(sockfd_c, (struct sockaddr*)&client, &len) < 0) FATAL("[%s][%s]: socket accept failure!", "server", "accept");
 
         //每次建立一个连接后fork出一个子进程进行收发数据
         pid_t pid = fork();
         switch (pid) {
             /* error */
             case -1: 
-                FATAL("%s", strerror(errno));
+                FATAL("[%s][%s]: fork failure! %s","client", "fork", strerror(errno));
             /* child */
             case 0:{
                 if(fork() > 0) exit(0);
@@ -65,29 +61,29 @@ int main(int argc, char **argv)
                     }
 
                     // rscq result encode
-                    syscall_result = syscall_result_encode(&header);
+                    syscall_result = syscall_return_encode(&header);
 
                     // return rscq result
-                    if (write(sockfd_c, syscall_result, header->size) < 0){
+                    if (write(sockfd_c, syscall_result, header.size) < 0){
                         printf("[server][socket-write]: errno, %d, strerror: %s\n", errno, strerror(errno));
                         return -1;
                     }
 
                     // Handling the crime scene
                     free(syscall_result);
-                    if (header->p_addr_in != NULL){
-                        free(header->p_addr_in);
+                    if (header.p_addr_in != NULL){
+                        free(header.p_addr_in);
                     }
-                    if (header->p_addr_out != NULL){
-                        free(header->p_addr_out);
+                    if (header.p_addr_out != NULL){
+                        free(header.p_addr_out);
                     }
-                    memset(&header, 0, RSC_HEADER_SIZE);
                     buffer = NULL;
+                    memset(&header, 0, RSC_HEADER_SIZE);
                 }
             }
         }
 
-        close(sock);
+        close(sockfd);
         // while(waitpid(-1, NULL, WNOHANG) > 0);
     }
     return 0;
