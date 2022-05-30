@@ -2,6 +2,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
 
 // struct test_a {
 //     int a;
@@ -37,49 +39,72 @@
 //     *tbuffer = (char *)malloc(sizeof(struct test_a));
 // }
 
-#define LLSIZE (sizeof(unsigned long long int) * 8)
-#define SET_MASK 0x0000000000000001
-#define ISSET_MASK 0xfffffffffffffffe
-#define RESET_MASK 0xfffffffffffffffe
+// #define LLSIZE (sizeof(unsigned long long int) * 8)
+// #define SET_MASK 0x0000000000000001
+// #define ISSET_MASK 0xfffffffffffffffe
+// #define RESET_MASK 0xfffffffffffffffe
 
-void set_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
-    if (syscall < 0 && syscall > 547){
-        return;
-    }
-    int base = syscall / LLSIZE;    // 获取基址
-    int surplus = syscall % LLSIZE; // 余值
+// void set_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
+//     if (syscall < 0 && syscall > 547){
+//         return;
+//     }
+//     int base = syscall / LLSIZE;    // 获取基址
+//     int surplus = syscall % LLSIZE; // 余值
 
-    unsigned long long int * base_p = syscall_bitmap + base;
-    unsigned long long int base_n = *base_p;
-    *base_p = base_n | ((( base_n >> surplus) | SET_MASK) << surplus);
-}
+//     unsigned long long int * base_p = syscall_bitmap + base;
+//     unsigned long long int base_n = *base_p;
+//     *base_p = base_n | ((( base_n >> surplus) | SET_MASK) << surplus);
+// }
 
-int is_set(unsigned long long int * syscall_bitmap, unsigned int syscall){
-    if (syscall < 0 && syscall > 547){
+// int is_set(unsigned long long int * syscall_bitmap, unsigned int syscall){
+//     if (syscall < 0 && syscall > 547){
+//         return -1;
+//     }
+//     int base = syscall / LLSIZE;    // 获取基址
+//     int surplus = syscall % LLSIZE; // 余值
+
+//     unsigned long long int * base_p = syscall_bitmap + base;
+//     unsigned long long int base_n = *base_p;
+//     base_n = (base_n >> surplus) | ISSET_MASK;
+//     return base_n==0xffffffffffffffff?1:-1;
+// }
+
+// void reset_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
+//     if (syscall < 0 && syscall > 547){
+//         return;
+//     }
+//     int base = syscall / LLSIZE;    // 获取基址
+//     int surplus = syscall % LLSIZE; // 余值
+
+//     unsigned long long int * base_p = syscall_bitmap + base;
+//     unsigned long long int base_n = *base_p;
+//     *base_p = base_n | ((( base_n >> surplus) & RESET_MASK) << surplus);
+// }
+
+// static unsigned long long int syscall_bitmap[9] = {15, 0, 0, 1, 0, 0, 0, 0, 0};
+
+union semun {          
+    int                 val;
+    struct semid_ds *   buf;
+    unsigned short *    array;
+};
+
+// 通过 ftok 获取信号量钥匙号
+int CreateKey(const char * pathName)
+{
+    FILE *fd = NULL;
+    ;
+ 
+    if ((fd = fopen( pathName,"r")) == NULL)
+    {
+        printf("Open file error!\n");
         return -1;
     }
-    int base = syscall / LLSIZE;    // 获取基址
-    int surplus = syscall % LLSIZE; // 余值
-
-    unsigned long long int * base_p = syscall_bitmap + base;
-    unsigned long long int base_n = *base_p;
-    base_n = (base_n >> surplus) | ISSET_MASK;
-    return base_n==0xffffffffffffffff?1:-1;
+ 
+    fclose(fd);
+    return ftok(pathName, 0);
 }
-
-void reset_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
-    if (syscall < 0 && syscall > 547){
-        return;
-    }
-    int base = syscall / LLSIZE;    // 获取基址
-    int surplus = syscall % LLSIZE; // 余值
-
-    unsigned long long int * base_p = syscall_bitmap + base;
-    unsigned long long int base_n = *base_p;
-    *base_p = base_n | ((( base_n >> surplus) & RESET_MASK) << surplus);
-}
-
-static unsigned long long int syscall_bitmap[9] = {15, 0, 0, 1, 0, 0, 0, 0, 0};
+#define SEM_PATHNAME "./system_v_yaoshi.txt"
 
 int main()
 {
@@ -140,9 +165,20 @@ int main()
     // printf("test bitmap_8: %lld\n", *(syscall_bitmap+7));
 
     // printf("0:%d, 1:%d, 2:%d, 3:%d, 257:%d\n", is_set(syscall_bitmap, 0), is_set(syscall_bitmap, 1), is_set(syscall_bitmap, 2), is_set(syscall_bitmap, 3), is_set(syscall_bitmap, 257));
-    /* 测试指针长度 */
-    char * test_buffer = "huomax is a very shuaige!";
-    printf("test_buffer length: %ld", sizeof(char *));
+    // /* 测试指针长度 */
+    // char * test_buffer = "huomax is a very shuaige!";
+    // printf("test_buffer length: %ld", sizeof(char *));
+
+    // 测试system v信号量机制使用了哪些系统调用
+
+   int semId;
+//    union semun arg;
+//    unsigned short array[4] = {0};
+//    struct sembuf buffer;
+ 
+   //解决信号量的创建和初始化不是原子操作的一种方案
+    semId = semget(CreateKey(SEM_PATHNAME), 1, 0666);
+    semctl(semId, 0, IPC_RMID);
 
     return 0;
 }
