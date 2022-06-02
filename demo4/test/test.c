@@ -171,14 +171,19 @@ int main()
 
     // 测试system v信号量机制使用了哪些系统调用
 
-   int semId;
+//    int semId;
 //    union semun arg;
 //    unsigned short array[4] = {0};
 //    struct sembuf buffer;
  
    //解决信号量的创建和初始化不是原子操作的一种方案
-    semId = semget(CreateKey(SEM_PATHNAME), 1, 0666);
-    semctl(semId, 0, IPC_RMID);
+    // semId = semget(CreateKey(SEM_PATHNAME), 1, 0666);
+    // semctl(semId, 0, IPC_RMID);
+    /* 测试short类型大小 */
+    printf("short type length: %d\n", sizeof(unsigned short));
+    printf("int type length: %d\n", sizeof(unsigned int));
+    printf("long type length: %d\n", sizeof(unsigned long));
+    printf("long long type length: %d\n", sizeof(unsigned long long));
 
     return 0;
 }

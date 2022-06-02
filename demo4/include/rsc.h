@@ -1,5 +1,5 @@
-#ifndef _RSC_INCLUDE_H
-#define _RSC_INCLUDE_H  0
+#ifndef _RSC_H
+#define _RSC_H  0
 
 /* C Standard Library */
 #include <errno.h>
@@ -22,20 +22,20 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 
-// 宏定义远程系统调用传递的数据结构长度 
+// struct rsc_header size
 #define RSC_HEADER_SIZE     sizeof(struct rsc_header)
 
-// 重定向系统调用
+// redirect syscall
 #define RSC_REDIRECT_SYSCALL 10000
 
-// 系统调用分类 
+// syscall classify 
 #define NO_POINTER              0  // 不带指针参数的系统调用
 #define IN_POINTER              1  // 带输入指针参数的系统调用
 #define OUT_POINTER             2  // 带输出指针参数的系统调用
 #define IO_POINTER              3  // 带输入输出指针参数的系统调用
 #define IN_SEQUENCE_POINTER     4  // 带连续输入指针参数的系统调用, 如 sys_poll, 使用结构体数据传递数据
 
-// 程序出现严重错误，直接结束程序
+// fatal error, exit process
 #define FATAL(...) \
     do { \
         fprintf(stderr, ": " __VA_ARGS__); \
@@ -43,22 +43,15 @@
         exit(EXIT_FAILURE); \
     } while (0)
 
-// 函数出现问题, 解释原因并退出
-#define ERROR(...) \
-    do { \
-        fprintf(stderr, "" __VA_ARGS__); \
-        fprintf(stderr, "errno, %d, strerror: %s\n", errno, strerror(errno)); \
-        return -1; \
-    } while (0)
 
-// 系统调用请求头 
+// syscall header
 struct rsc_header {
     unsigned long long int syscall;     // 系统调用号
     unsigned int p_flag;              	// 系统调用分类
     unsigned int size;					// 远程系统调用请求长度, 字节为单位
     unsigned int error;                 // 出错信息
 
-    // 系统调用传参寄存器
+    // syscall register parameters
     unsigned long long int rax;
     unsigned long long int rdi;
     unsigned long long int rsi;
@@ -67,17 +60,18 @@ struct rsc_header {
     unsigned long long int r8;
     unsigned long long int r9;
 
-    // 系统调用指针参数描述信息
+    // describe information of pointer parameters
     unsigned int p_location_in;     // 输入指针所在位置
     unsigned int p_location_out;    // 输出指针所在位置
     unsigned int p_count_in;        // 输入指针需要操作的字节数
     unsigned int p_count_out;       // 输出指针需要操作的字节数
 
+    // memory  synchronize (only server use)
     char * p_addr_in;               // 输入指针指向的内存, 用于服务端进行指针重定向
     char * p_addr_out;              // 输出指针指向的内存, 用于服务端进行指针重定向
 };
 
-/* 系统调用位示图, 用来管理已实现的系统调用(已实现置位1, 否则置位0) */
+/* syscall bitmap, manage implemented remote system calls */
 #define LLSIZE (sizeof(unsigned long long int) * 8)
 #define SET_MASK 0x0000000000000001
 #define ISSET_MASK 0xfffffffffffffffe

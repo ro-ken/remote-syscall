@@ -1,5 +1,5 @@
-#ifndef _RSC_CLIENT_H
-#define _RSC_CLIENT_H  2
+#ifndef RSC_CLIENT_H_
+#define RSC_CLIENT_H_  2
 
 #include "rsc_include.h"
 

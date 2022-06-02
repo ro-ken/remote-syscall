@@ -1,131 +1,106 @@
-#include "../include/rsc_include.h"
-#include "../include/rsc_include_client.h"
+/* remote syscall */
+#include "../include/rsc.h"
+#include "../include/rsc_client.h"
 
-// 远程系统调用请求编组
-char * syscall_request_encode(struct rsc_header *header, struct user_regs_struct *user_regs){
-    unsigned int buffer_size = 0;   // 附加数据缓冲区大小
-    char * buffer = NULL;           // 附加数据缓冲区
-    char * syscall_request = NULL;  // 远程系统调用请求
+// syscall that can be executed remotely: 0, 1, 2, 3, 257
+unsigned long long syscall_bitmap[9] = {15, 0, 0, 0, 3, 0, 0, 0, 0};
 
-    // 初始化 struct rsc_header 
-    header->syscall = user_regs->orig_rax;
-    header->rax = user_regs->rax;
-    header->rdi = user_regs->rdi;
-    header->rsi = user_regs->rsi;
-    header->rdx = user_regs->rdx;
-    header->r10 = user_regs->r10;
-    header->r8 = user_regs->r8;
-    header->r9 = user_regs->r9;
+// remote syscall request encode, return a pointer to the syscall_reuqest buffer
+char * RequestEncode( struct user_regs_struct * regs, struct rsc_header * header){
+    char * extra_buffer = NULL;           // extra buffer
+    char * syscall_request = NULL;  // pointer to remote syscall request buffer
+
+    // initial struct header
+    header->syscall = regs->orig_rax;
+    header->rax = regs->rax;
+    header->rdi = regs->rdi;
+    header->rsi = regs->rsi;
+    header->rdx = regs->rdx;
+    header->r10 = regs->r10;
+    header->r8 = regs->r8;
+    header->r9 = regs->r9;
     header->p_addr_in = NULL;
     header->p_addr_out = NULL;
 
-    // 处理不同的指针参数, 返回附加数据缓冲区指针
-    buffer = pointer_encode_client(header);
+    // encode pointer paraments, memory data stored in extra buffer
+    extra_buffer = PointerEncode(header);
 
-    // 填充 rscq(remote syscall request)
+    // fill remote syscall request buffer(cover struct rsc_header and extra buffer)
     syscall_request = (char *)malloc(sizeof(char) * header->size);
     memcpy(syscall_request, header, RSC_HEADER_SIZE);
-    if (buffer != NULL){
-        memcpy(syscall_request + RSC_HEADER_SIZE, buffer, header->size - RSC_HEADER_SIZE);
-        free(buffer);
-        buffer = NULL;
+    if (extra_buffer != NULL){    // extra buffer exsit, fill it to remote syscall request buffer
+        memcpy(syscall_request + RSC_HEADER_SIZE, extra_buffer, header->size - RSC_HEADER_SIZE);
+        free(extra_buffer);
+        extra_buffer = NULL;
     }
 
     return syscall_request;
 }
 
-int syscall_return_decode(struct user_regs_struct * u_regs, struct rsc_header * header, char * syscall_result){
-    switch (header->p_flag) {
-        case 0: {
-            break;
-        }
-        case 1: {
-            break;
-        }
-        case 2: {
-            if (out_pointer_decode_client(u_regs, header, syscall_result) < 0) ERROR("[%s][%s]: in syscall_return_decode!\n", "client", "out_pointer_decode");
-            break;
-        }
-        case 3: {
-            if (out_pointer_decode_client(u_regs, header, syscall_result) < 0) ERROR("[%s][%s]: in syscall_return_decode!\n", "client", "io_pointer_decode");
-            break;
-        }
-        case 4: {
-            break;
-        }
-    }
+// handle pointer parameters, return extra buffer pointer
+char * PointerEncode(struct rsc_header * header){
+    char * extra_buffer = NULL;         // 附加数据缓冲区
 
-    return 1;
-}
-
-// 根据系统调用号处理指针参数
-char * pointer_encode_client(struct rsc_header * header){
-    char * buffer = NULL;         // 附加数据缓冲区
-
-    /* 处理带输入指针参数的系统调用 */
+    /* input pointer */
     switch(header->syscall) {
         case 1: {
             header->p_flag = IN_POINTER;
-            buffer = in_pointer_encode_client(2, header->rdx, header->rsi, header);
+            extra_buffer = InputPointerEncode(2, header->rdx, header->rsi, header);
             break;
         }
         case 2: {
             header->p_flag = IN_POINTER;
-            buffer = in_pointer_encode_client(1, strlen((char *)header->rdi), header->rdi, header);
+            extra_buffer = InputPointerEncode(1, strlen((char *)header->rdi), header->rdi, header);
             break;
         }
         case 257: {
             header->p_flag = IN_POINTER;
-            buffer = in_pointer_encode_client(2, strlen((char *)header->rdi), header->rdi, header);
+            extra_buffer = InputPointerEncode(2, strlen((char *)header->rdi), header->rdi, header);
             break;
         }
     }
 
-    /* 处理带输出指针参数的系统调用 */
+    /* output pointer */
     switch(header->syscall) {
         case 0: {
             header->p_flag = OUT_POINTER;   
-            buffer = out_pointer_encode_client(2, header->rdx, header);
+            extra_buffer = OutputPointerEncode(2, header->rdx, header);
             break;
         }
     }
 
-    /* 处理带输入输出指针参数的系统调用 */
+    /* IO pointer */
     switch(header->syscall) {
         case 89: {
             header->p_flag =IO_POINTER;
-            buffer = out_pointer_encode_client(2, header->rdx, header);
-            buffer = in_pointer_encode_client(1, strlen((char *)header->rdi), header->rdi, header);
+            extra_buffer = OutputPointerEncode(2, header->rdx, header);
+            extra_buffer = InputPointerEncode(1, strlen((char *)header->rdi), header->rdi, header);
             break;
         }
     }
 
-    /* 处理带连续输入指针参数的系统调用 */
+    /* sequence input pointer */
     switch(header->syscall) {
         case 7: {}
     }
 
-    return buffer;
+    return extra_buffer;
 }
 
-// 带输入指针参数的系统调用,
-// 从输入指针指向的内存中取出指定大小的数据附加到 RSCQ 同步服务端数据
-char * in_pointer_encode_client(unsigned int p_location, unsigned int p_count, unsigned long long int addr, struct rsc_header * header){
-    char * buffer = NULL;
+char * InputPointerEncode(unsigned int p_location, unsigned int p_count, unsigned long long addr_in, struct rsc_header * header){
+    char * extra_buffer = NULL;
 
     header->size = p_count + RSC_HEADER_SIZE;
     header->p_location_in = p_location;
     header->p_count_in = p_count;
 
-    buffer = (char *)malloc(sizeof(char) * p_count);
-    memcpy(buffer, (char *)addr, p_count);
+    extra_buffer = (char *)malloc(sizeof(char) * p_count);
+    memcpy(extra_buffer, (char *)addr_in, p_count);
 
-    return buffer;
+    return extra_buffer;
 }
 
-// 带输出指针参数的系统调用
-// 本地端不作为, 服务端需要对 RSCQ 执行结果进行处理
-char * out_pointer_encode_client(unsigned int p_location, unsigned int p_count, struct rsc_header * header){
+char * OutputPointerEncode(unsigned int p_location, unsigned int p_count, struct rsc_header * header){
     header->size = RSC_HEADER_SIZE;
     header->p_location_out = p_location;
     header->p_count_out = p_count;
@@ -133,21 +108,43 @@ char * out_pointer_encode_client(unsigned int p_location, unsigned int p_count, 
     return NULL;
 }
 
-int out_pointer_decode_client(struct user_regs_struct * u_regs, struct rsc_header * header, char * syscall_result){
+// remote syscall execute result decode
+int ResultDecode(struct user_regs_struct * regs, struct rsc_header * header, char * extra_buffer){
+    switch (header->p_flag) {
+        case 2: {
+            if (OutputPointerDecode(regs, header, extra_buffer) < 0) {
+                printf("[client][ResultDecode]: in output pointer decode!\n");
+                exit(EXIT_FAILURE);
+            }
+            break;
+        }
+        case 3: {
+            if (OutputPointerDecode(regs, header, extra_buffer) < 0) {
+                printf("[client][ResultDecode]: in output pointer decode!\n");
+                exit(EXIT_FAILURE);
+            }
+            break;
+        }
+    }
+
+    return 1;
+}
+
+int OutputPointerDecode( struct user_regs_struct * regs, struct rsc_header * header, char * extra_buffer){
     switch (header->p_location_out) {
-        case 1: memcpy((char *)u_regs->rdi, syscall_result, header->p_count_out); break;
-        case 2: memcpy((char *)u_regs->rsi, syscall_result, header->p_count_out); break;
-        case 3: memcpy((char *)u_regs->rdx, syscall_result, header->p_count_out); break;
-        case 4: memcpy((char *)u_regs->r10, syscall_result, header->p_count_out); break;
-        case 5: memcpy((char *)u_regs->r8, syscall_result, header->p_count_out); break;
-        case 6: memcpy((char *)u_regs->r9, syscall_result, header->p_count_out); break;
+        case 1: memcpy((char *)regs->rdi, extra_buffer, header->p_count_out); break;
+        case 2: memcpy((char *)regs->rsi, extra_buffer, header->p_count_out); break;
+        case 3: memcpy((char *)regs->rdx, extra_buffer, header->p_count_out); break;
+        case 4: memcpy((char *)regs->r10, extra_buffer, header->p_count_out); break;
+        case 5: memcpy((char *)regs->r8, extra_buffer, header->p_count_out); break;
+        case 6: memcpy((char *)regs->r9, extra_buffer, header->p_count_out); break;
     }
 
     return 1;
 }
 
 // 在客户端创建一个socket连接，返回socket文件描述符 
-int socket_connect_client(char* ip_addr, int port){
+int SocketConnect(char* ip_addr, int port){
     struct sockaddr_in server_addr;
     int sockfd = -1;
 
@@ -170,7 +167,7 @@ int socket_connect_client(char* ip_addr, int port){
 }
 
 // 置位系统调用号对应的位示图bit位
-void set_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
+void SetBitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     if (syscall < 0 && syscall > 547){
         return;
     }
@@ -183,7 +180,7 @@ void set_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
 }
 
 // 查询当前系统调用是否已实现
-int is_set(unsigned long long int * syscall_bitmap, unsigned int syscall){
+int IsSet(unsigned long long int * syscall_bitmap, unsigned int syscall){
     if (syscall < 0 && syscall > 547){
         return -1;
     }
@@ -197,7 +194,7 @@ int is_set(unsigned long long int * syscall_bitmap, unsigned int syscall){
 }
 
 // 置位系统调用号对应的位示图bit位
-void reset_bitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
+void ResetBitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     if (syscall < 0 && syscall > 547){
         return;
     }
