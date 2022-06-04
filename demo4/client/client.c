@@ -55,6 +55,10 @@ int main(int argc, char **argv)
 
             // syscall-enter-stop
             if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1){
+                if (errno == 3) {
+                    printf("[%s][%s]: target code area exit\n", "client", "ptrace_syscall");
+                    break;
+                }
                 printf("[%s][%s]: in syscall-enter-stop, %d, %s\n", "client", "ptrace_syscall", errno, strerror(errno));
                 break;
             }
@@ -72,6 +76,8 @@ int main(int argc, char **argv)
 
                 // remote syscall request encode
                 syscall_request = RequestEncode(&regs, &header);
+                printf("regs.syscall:%lld\n", regs.orig_rax);
+                DebugPrintf(&header);
 
                 // socket write remote syscall request
                 int ret = 0;
@@ -121,7 +127,8 @@ int main(int argc, char **argv)
             }
 
             // syscall-exit-stop
-            if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1) FATAL("[%s][%s]: in syscall-exit-stop, %d, %s\n", "client", "ptrace_syscall", errno, strerror(errno));
+            if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1) 
+                FATAL("[%s][%s]: in syscall-exit-stop, %d, %s\n", "client", "ptrace_syscall", errno, strerror(errno));
             if (waitpid(pid, 0, 0) == -1) FATAL("[%s][%s]: in syscall-exit-stop, %d, %s\n", "client", "waitpid", errno, strerror(errno));
         }
     }

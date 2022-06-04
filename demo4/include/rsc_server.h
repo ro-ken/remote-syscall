@@ -21,5 +21,7 @@ int OutputPointerDecode(struct rsc_header * header);
 // output pointer handle
 char * OutputPointerEncode(struct rsc_header * header);
 
+void DebugPrintf(struct rsc_header * header);
+
 
 #endif

@@ -3,7 +3,7 @@
 #include "../include/rsc_client.h"
 
 // syscall that can be executed remotely: 0, 1, 2, 3, 257
-unsigned long long syscall_bitmap[9] = {15, 0, 0, 0, 3, 0, 0, 0, 0};
+unsigned long long syscall_bitmap[9] = {15, 0, 0, 0, 2, 0, 0, 0, 0};
 
 // remote syscall request encode, return a pointer to the syscall_reuqest buffer
 char * RequestEncode( struct user_regs_struct * regs, struct rsc_header * header){
@@ -50,12 +50,12 @@ char * PointerEncode(struct rsc_header * header){
         }
         case 2: {
             header->p_flag = IN_POINTER;
-            extra_buffer = InputPointerEncode(1, strlen((char *)header->rdi), header->rdi, header);
+            extra_buffer = InputPointerEncode(1, strlen((char *)header->rsi), header->rsi, header);
             break;
         }
         case 257: {
             header->p_flag = IN_POINTER;
-            extra_buffer = InputPointerEncode(2, strlen((char *)header->rdi), header->rdi, header);
+            extra_buffer = InputPointerEncode(2, strlen((char *)header->rsi), header->rsi, header);
             break;
         }
     }
@@ -204,4 +204,11 @@ void ResetBitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     unsigned long long int * base_p = syscall_bitmap + base;
     unsigned long long int base_n = *base_p;
     *base_p = base_n | ((( base_n >> surplus) & RESET_MASK) << surplus);
+}
+
+void DebugPrintf(struct rsc_header * header){
+    printf("syscall:%lld, p_flag:%d, size:%d, error:%d\n", header->syscall,header->p_flag, header->size, header->error);
+    printf("rax:%lld, rdi:%lld, rsi:%lld, rdx:%lld, r10:%lld, r8:%lld, r9:%lld\n", header->rax, header->rdi,header->rsi,header->rdx,header->r10,header->r8,header->r9);
+    printf("p_location_in:%d, p_location_out:%d, p_count_in:%d, p_count_out:%d\n", header->p_location_in, header->p_location_out, header->p_count_in, header->p_count_out);
+    printf("p_addr_in:%x, p_addr_out:%x\n", header->p_addr_in, header->p_addr_out);
 }

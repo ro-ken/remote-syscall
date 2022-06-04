@@ -38,7 +38,7 @@
 // fatal error, exit process
 #define FATAL(...) \
     do { \
-        fprintf(stderr, ": " __VA_ARGS__); \
+        fprintf(stderr, "" __VA_ARGS__); \
         fputc('\n', stderr); \
         exit(EXIT_FAILURE); \
     } while (0)

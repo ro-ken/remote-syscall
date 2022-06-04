@@ -171,7 +171,7 @@ int main()
 
     // 测试system v信号量机制使用了哪些系统调用
 
-//    int semId;
+   int semId;
 //    union semun arg;
 //    unsigned short array[4] = {0};
 //    struct sembuf buffer;

@@ -46,6 +46,7 @@ int RSCHandle(int sockfd_c){
 
 
 int RequestDecode(struct rsc_header * header, char * buffer){
+    DebugPrintf(header);
     switch (header->p_flag) {
         case 0: {
             break;
@@ -79,6 +80,8 @@ int RequestDecode(struct rsc_header * header, char * buffer){
             break;
         }
     }
+
+    return 1;
 }
 
 int InputPointerDecode(struct rsc_header * header, char * buffer){
@@ -195,4 +198,11 @@ int InitialSocket(int port, const char* ip)
     }
 
     return sockfd;
+}
+
+void DebugPrintf(struct rsc_header * header){
+    printf("syscall:%lld, p_flag:%d, size:%d, error:%d\n", header->syscall,header->p_flag, header->size, header->error);
+    printf("rax:%lld, rdi:%lld, rsi:%lld, rdx:%lld, r10:%lld, r8:%lld, r9:%lld\n", header->rax, header->rdi,header->rsi,header->rdx,header->r10,header->r8,header->r9);
+    printf("p_location_in:%d, p_location_out:%d, p_count_in:%d, p_count_out:%d\n", header->p_location_in, header->p_location_out, header->p_count_in, header->p_count_out);
+    printf("p_addr_in:%x, p_addr_out:%x\n", header->p_addr_in, header->p_addr_out);
 }

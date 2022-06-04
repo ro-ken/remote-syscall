@@ -19,5 +19,6 @@ void    ResetBitmap(unsigned long long int * syscall_bitmap, unsigned int syscal
 int     IsSet(unsigned long long int * syscall_bitmap, unsigned int syscall);
 void    SetBitmap(unsigned long long int * syscall_bitmap, unsigned int syscall);
 
+void DebugPrintf(struct rsc_header * header);
 
 #endif

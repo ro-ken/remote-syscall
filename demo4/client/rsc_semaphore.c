@@ -7,7 +7,7 @@ int CreateKey(const char * pathName)
     FILE *fd = NULL;
  
     if ((fd = fopen( pathName,"r")) == NULL){
-        printf("Open file error!\n");
+        printf("[%s][%s]: %s\n", "client", "CreateKey", strerror(errno));
         return -1;
     }
  
