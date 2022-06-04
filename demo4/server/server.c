@@ -13,7 +13,7 @@ int main(int argc, char **argv)
 
     for(;;){
         int sockfd_c = -1;
-        if (accept(sockfd_c, (struct sockaddr*)&client, &len) < 0)
+        if ((sockfd_c = accept(sockfd, (struct sockaddr*)&client, &len)) < 0)
             FATAL("[%s][%s]: socket accept failure!, %s", "server", "accept", strerror(errno));
 
         pid_t pid = fork();
