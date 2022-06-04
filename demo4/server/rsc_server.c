@@ -1,32 +1,76 @@
-#include "../include/rsc_include.h"
-#include "../include/rsc_include_server.h"
+#include "../include/rsc.h"
+#include "../include/rsc_server.h"
 
-int syscall_request_decode(struct rsc_header * header, char * buffer){
+int RSCHandle(int sockfd_c){
+
+    // initial auxiliary data struct
+    char * extra_buffer = NULL;
+    char * syscall_result = NULL;
+    struct rsc_header header;
+    memset(&header, 0, RSC_HEADER_SIZE);
+
+    // loop handle remote syscall request
+    for(;;){
+        if(read(sockfd_c, &header, RSC_HEADER_SIZE) < 0)
+            FATAL("[%s][%s]: %s", "server", "read", strerror(errno));
+        if (header.size > RSC_HEADER_SIZE){
+            extra_buffer = (char *)malloc(sizeof(char) * (header.size - RSC_HEADER_SIZE));
+            if(read(sockfd_c, extra_buffer, header.size - RSC_HEADER_SIZE) < 0)
+                FATAL("[%s][%s]: %s, in read extra_buffer!", "server", "read", strerror(errno));
+        }
+
+        // remtoe syscall request decode
+        if (RequestDecode(&header, extra_buffer) < 0)
+            FATAL("[%s][%s]: remote syscall request decode failure!", "server", "RequestDecode");
+
+        // execute remote syscall request
+        if (RequestExecute(&header) < 0)
+            FATAL("[%s][%s]: remote syscall request execute failure!", "server", "RequestExecute");
+
+        // remote syscall request execute result encode
+        syscall_result = ResultEncode(&header);
+
+        // return rscq result
+        if (write(sockfd_c, syscall_result, header.size) < 0) 
+            FATAL("[%s][%s]: %s", "server", "write", strerror(errno));
+
+        // Handling the crime scene
+        free(syscall_result);
+        if (header.p_addr_in != NULL) free(header.p_addr_in);
+        if (header.p_addr_out != NULL) free(header.p_addr_out);
+        extra_buffer = NULL;
+        syscall_result = NULL;
+        memset(&header, 0, RSC_HEADER_SIZE);
+    }
+}
+
+
+int RequestDecode(struct rsc_header * header, char * buffer){
     switch (header->p_flag) {
         case 0: {
             break;
         }
         case 1: {
-            if (in_pointer_decode_server(header, buffer) < 0){
-                printf("[server][decode][in]: error, will exit!\n");
+            if (InputPointerDecode(header, buffer) < 0){
+                printf("[server][InputPointerDecode]: error, will exit!\n");
                 return -1;
             }
             break;
         }
         case 2: {
-            if (out_pointer_decode_server(header) < 0){
-                printf("[server][decode][out]: error, will exit!\n");
+            if (OutputPointerDecode(header) < 0){
+                printf("[server][OutputPointerDecode]: error, will exit!\n");
                 return -1;
             }
             break;
         }
         case 3: {
-            if (in_pointer_decode_server(header, buffer) < 0){
-                printf("[server][decode][io-in]: error, will exit!\n");
+            if (InputPointerDecode(header, buffer) < 0){
+                printf("[server][InputPointerDecode]: error, will exit!\n");
                 return -1;
             }
-            if (out_pointer_decode_server(header) < 0){
-                printf("[server][decode][io-out]: error, will exit!\n");
+            if (OutputPointerDecode(header) < 0){
+                printf("[server][OutputPointerDecode]: error, will exit!\n");
                 return -1;
             }
             break;
@@ -37,8 +81,7 @@ int syscall_request_decode(struct rsc_header * header, char * buffer){
     }
 }
 
-// 输入指针重定向
-int in_pointer_decode_server(struct rsc_header * header, char * buffer){
+int InputPointerDecode(struct rsc_header * header, char * buffer){
     header->p_addr_in = buffer;
 
     // 输入指针重定向
@@ -54,8 +97,7 @@ int in_pointer_decode_server(struct rsc_header * header, char * buffer){
     return 1;
 }
 
-// 输出指针重定向
-int out_pointer_decode_server(struct rsc_header * header){
+int OutputPointerDecode(struct rsc_header * header){
     char * out_buffer = NULL;
     out_buffer = (char *)malloc(sizeof(char) * header->p_count_out);
     memset(out_buffer, 0, header->p_count_out);
@@ -74,8 +116,8 @@ int out_pointer_decode_server(struct rsc_header * header){
     return 1;
 }
 
-// 远程系统调用请求执行
-int syscall_request_execute(struct rsc_header * header){
+
+int RequestExecute(struct rsc_header * header){
     header->rax = syscall(header->syscall, header->rdi, header->rsi, header->rdx, header->r10, header->r8, header->r9);
     if (header->rax < 0) {
         header->error = errno;
@@ -83,8 +125,7 @@ int syscall_request_execute(struct rsc_header * header){
     return 1;
 }
 
-/* 远程系统调用请求执行结果编组 */
-char * syscall_return_encode(struct rsc_header * header){
+char * ResultEncode(struct rsc_header * header){
     char * syscall_result = NULL;
     switch(header->p_flag) {
         case 0: {
@@ -100,11 +141,11 @@ char * syscall_return_encode(struct rsc_header * header){
             break;
         }
         case 2: {
-            syscall_result = out_pointer_encode_server(header);
+            syscall_result = OutputPointerEncode(header);
             break;
         }
         case 3: {
-            syscall_result = out_pointer_encode_server(header);
+            syscall_result = OutputPointerEncode(header);
             break;
         }
         case 4: {
@@ -114,7 +155,7 @@ char * syscall_return_encode(struct rsc_header * header){
     return syscall_result;
 }
 
-char * out_pointer_encode_server(struct rsc_header * header){
+char * OutputPointerEncode(struct rsc_header * header){
     char * syscall_result = NULL;
     header->size = RSC_HEADER_SIZE + header->p_count_out;
     syscall_result = (char *)malloc(sizeof(char) * header->size);
@@ -124,8 +165,7 @@ char * out_pointer_encode_server(struct rsc_header * header){
     return syscall_result; 
 }
 
-// 建立socket server
-int initial_socket(int port, const char* ip)
+int InitialSocket(int port, const char* ip)
 {
     int sockfd = -1;
     if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){

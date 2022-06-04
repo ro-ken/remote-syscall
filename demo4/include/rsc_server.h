@@ -1,22 +1,25 @@
 #ifndef RSC_CLIENT_H_
 #define RSC_CLIENT_H_  2
 
-#include "rsc_include.h"
+#include "rsc.h"
 
-// 建立 socket server
-int initial_socket(int port, const char* ip);
+// Create and initial socket server
+int InitialSocket(int port, const char* ip);
 
-// RSCQ handle
-int syscall_request_decode(struct rsc_header * header, char * buffer);
-int syscall_request_execute(struct rsc_header * header);
-char * syscall_return_encode(struct rsc_header * header);
+// remote syscall request handle
+int RSCHandle(int sockfd_c);
+
+
+int RequestDecode(struct rsc_header * header, char * buffer);
+int RequestExecute(struct rsc_header * header);
+char * ResultEncode(struct rsc_header * header);
 
 // RSCQ pointer handle
-int in_pointer_decode_server(struct rsc_header * header, char * buffer);
-int out_pointer_decode_server(struct rsc_header * header);
+int InputPointerDecode(struct rsc_header * header, char * buffer);
+int OutputPointerDecode(struct rsc_header * header);
 
 // output pointer handle
-char * out_pointer_encode_server(struct rsc_header * header);
+char * OutputPointerEncode(struct rsc_header * header);
 
 
 #endif
