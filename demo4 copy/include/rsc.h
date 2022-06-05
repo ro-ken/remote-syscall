@@ -35,12 +35,6 @@
 #define IO_POINTER              3  // 带输入输出指针参数的系统调用
 #define IN_SEQUENCE_POINTER     4  // 带连续输入指针参数的系统调用, 如 sys_poll, 使用结构体数据传递数据
 
-// syscall pointer parameters classify
-#define FILENAME_P  0
-#define STRUCT_P    1
-#define BUFFURR_P   2
-#define FILENAME_SIZE 8
-
 // fatal error, exit process
 #define FATAL(...) \
     do { \
@@ -58,13 +52,13 @@ struct rsc_header {
     unsigned int error;                 // 出错信息
 
     // syscall register parameters
-    unsigned long long int rax;
-    unsigned long long int rdi;
-    unsigned long long int rsi;
-    unsigned long long int rdx;
-    unsigned long long int r10;
-    unsigned long long int r8;
-    unsigned long long int r9;
+    unsigned long  rax;
+    unsigned long  rdi;
+    unsigned long  rsi;
+    unsigned long  rdx;
+    unsigned long  r10;
+    unsigned long  r8;
+    unsigned long  r9;
 
     // describe information of pointer parameters
     unsigned int p_location_in;     // 输入指针所在位置

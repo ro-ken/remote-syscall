@@ -5,49 +5,48 @@ int RSCHandle(int sockfd_c){
 
     // initial auxiliary data struct
     char * extra_buffer = NULL;
+    char * syscall_result = NULL;
     struct rsc_header header;
     memset(&header, 0, RSC_HEADER_SIZE);
 
     // loop handle remote syscall request
     for(;;){
-        int ret = 0;
-        char read_buffer[1000];
-        if((ret = read(sockfd_c, read_buffer, 1000)) < 0)
+        if(read(sockfd_c, &header, RSC_HEADER_SIZE) < 0)
             FATAL("[%s][%s]: %s", "server", "read", strerror(errno));
-        memcpy(&header, read_buffer, RSC_HEADER_SIZE);
-        // DebugPrintf(&header);
-
         if (header.size > RSC_HEADER_SIZE){
             extra_buffer = (char *)malloc(sizeof(char) * (header.size - RSC_HEADER_SIZE));
-            memcpy(extra_buffer, read_buffer + RSC_HEADER_SIZE, header.size - RSC_HEADER_SIZE);
+            if(read(sockfd_c, extra_buffer, header.size - RSC_HEADER_SIZE) < 0)
+                FATAL("[%s][%s]: %s, in read extra_buffer!", "server", "read", strerror(errno));
         }
 
         // remtoe syscall request decode
         if (RequestDecode(&header, extra_buffer) < 0)
             FATAL("[%s][%s]: remote syscall request decode failure!", "server", "RequestDecode");
-        DebugPrintf(&header);
+
         // execute remote syscall request
         if (RequestExecute(&header) < 0)
             FATAL("[%s][%s]: remote syscall request execute failure!", "server", "RequestExecute");
 
         // remote syscall request execute result encode
-        memset(read_buffer, 0 , 1000);
-        ResultEncode(&header, read_buffer);
+        syscall_result = ResultEncode(&header);
 
         // return rscq result
-        if (write(sockfd_c, read_buffer, 1000) < 0) 
+        if (write(sockfd_c, syscall_result, header.size) < 0) 
             FATAL("[%s][%s]: %s", "server", "write", strerror(errno));
 
         // Handling the crime scene
+        free(syscall_result);
         if (header.p_addr_in != NULL) free(header.p_addr_in);
         if (header.p_addr_out != NULL) free(header.p_addr_out);
         extra_buffer = NULL;
+        syscall_result = NULL;
         memset(&header, 0, RSC_HEADER_SIZE);
     }
 }
 
 
 int RequestDecode(struct rsc_header * header, char * buffer){
+    DebugPrintf(header);
     switch (header->p_flag) {
         case 0: {
             break;
@@ -81,6 +80,7 @@ int RequestDecode(struct rsc_header * header, char * buffer){
             break;
         }
     }
+
     return 1;
 }
 
@@ -128,38 +128,44 @@ int RequestExecute(struct rsc_header * header){
     return 1;
 }
 
-int ResultEncode(struct rsc_header * header, char * read_buffer){
-    header->size = RSC_HEADER_SIZE;
+char * ResultEncode(struct rsc_header * header){
+    char * syscall_result = NULL;
     switch(header->p_flag) {
         case 0: {
-            memcpy(read_buffer, header, RSC_HEADER_SIZE);
+            header->size = RSC_HEADER_SIZE;
+            syscall_result = (char *)malloc(sizeof(char *) * RSC_HEADER_SIZE);
+            memcpy(syscall_result, header, RSC_HEADER_SIZE);
             break;
         }
         case 1: {
-            memcpy(read_buffer, header, RSC_HEADER_SIZE);
+            header->size = RSC_HEADER_SIZE;
+            syscall_result = (char *)malloc(sizeof(char *) * RSC_HEADER_SIZE);
+            memcpy(syscall_result, header, RSC_HEADER_SIZE);
             break;
         }
         case 2: {
-            OutputPointerEncode(header, read_buffer);
+            syscall_result = OutputPointerEncode(header);
             break;
         }
         case 3: {
-            OutputPointerEncode(header, read_buffer);
+            syscall_result = OutputPointerEncode(header);
             break;
         }
         case 4: {
             break;
         }
     }
-    return 1;
+    return syscall_result;
 }
 
-int OutputPointerEncode(struct rsc_header * header, char * read_buffer){
+char * OutputPointerEncode(struct rsc_header * header){
+    char * syscall_result = NULL;
     header->size = RSC_HEADER_SIZE + header->p_count_out;
+    syscall_result = (char *)malloc(sizeof(char) * header->size);
 
-    memcpy(read_buffer, header, RSC_HEADER_SIZE);
-    memcpy(read_buffer + RSC_HEADER_SIZE, header->p_addr_out, header->p_count_out);
-    return 1; 
+    memcpy(syscall_result, header, RSC_HEADER_SIZE);
+    memcpy(syscall_result + RSC_HEADER_SIZE, header->p_addr_out, header->p_count_out);
+    return syscall_result; 
 }
 
 int InitialSocket(int port, const char* ip)
@@ -195,7 +201,7 @@ int InitialSocket(int port, const char* ip)
 }
 
 void DebugPrintf(struct rsc_header * header){
-    fprintf(stderr, "syscall:%ld, p_flag:%d, size:%d, error:%d\n", header->syscall,header->p_flag, header->size, header->error);
+    fprintf(stderr, "syscall:%lld, p_flag:%d, size:%d, error:%d\n", header->syscall,header->p_flag, header->size, header->error);
     fprintf(stderr, "rax:%lld, rdi:%lld, rsi:%lld, rdx:%lld, r10:%lld, r8:%lld, r9:%lld\n", header->rax, header->rdi,header->rsi,header->rdx,header->r10,header->r8,header->r9);
     fprintf(stderr, "p_location_in:%d, p_location_out:%d, p_count_in:%d, p_count_out:%d\n", header->p_location_in, header->p_location_out, header->p_count_in, header->p_count_out);
     fprintf(stderr, "p_addr_in:%s, p_addr_out:%s\n", header->p_addr_in, header->p_addr_out);

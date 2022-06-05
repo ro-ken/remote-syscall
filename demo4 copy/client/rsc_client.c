@@ -6,8 +6,10 @@
 
 
 // remote syscall request encode, return a pointer to the syscall_reuqest buffer
-int RequestEncode( struct user_regs_struct * regs, struct rsc_header * header, char * write_buffer, pid_t pid){
-    // char *syscall_request = NULL;
+char * RequestEncode( struct user_regs_struct * regs, struct rsc_header * header){
+    char * extra_buffer = NULL;             // extra buffer
+    char * syscall_request = NULL;          // pointer to remote syscall request buffer
+
     // initial struct header
     header->syscall = regs->orig_rax;
     header->rax = regs->rax;
@@ -21,32 +23,47 @@ int RequestEncode( struct user_regs_struct * regs, struct rsc_header * header, c
     header->p_addr_out = NULL;
 
     // encode pointer paraments, memory data stored in extra buffer
-    PointerEncode(header, write_buffer,pid);
+    extra_buffer = PointerEncode(header);
 
-    return 1;
+    // fill remote syscall request buffer(cover struct rsc_header and extra buffer)
+    fprintf(stderr, "header-size:%d\n", header->size);
+    syscall_request = (char *)malloc(sizeof(char) * header->size);
+    memcpy(syscall_request, header, RSC_HEADER_SIZE);
+    if (extra_buffer != NULL){    // extra buffer exsit, fill it to remote syscall request buffer
+        memcpy(syscall_request + RSC_HEADER_SIZE, extra_buffer, header->size - RSC_HEADER_SIZE);
+        free(extra_buffer);
+        extra_buffer = NULL;
+    }
+
+    return syscall_request;
 }
 
 // handle pointer parameters, return extra buffer pointer
-int PointerEncode(struct rsc_header * header, char * write_buffer, pid_t pid){
+char * PointerEncode(struct rsc_header * header){
     char * extra_buffer = NULL;         // 附加数据缓冲区
-    // char * syscall_request = NULL;
-    header->size = RSC_HEADER_SIZE;
+    fprintf(stderr, "syscall:%ld, p_flag:%d, size:%d, error:%d\n", header->syscall,header->p_flag, header->size, header->error);
+    fprintf(stderr, "rax:%ld, rdi:%ld, rsi:%ld, rdx:%ld, r10:%ld, r8:%ld, r9:%ld\n", header->rax, header->rdi,header->rsi,header->rdx,header->r10,header->r8,header->r9);
+    fprintf(stderr, "p_location_in:%d, p_location_out:%d, p_count_in:%d, p_count_out:%d\n", header->p_location_in, header->p_location_out, header->p_count_in, header->p_count_out);
+    fprintf(stderr, "p_addr_in:%s, p_addr_out:%s\n", header->p_addr_in, header->p_addr_out);
+
 
     /* input pointer */
     switch(header->syscall) {
         case 1: {
             header->p_flag = IN_POINTER;
-            extra_buffer = InputPointerEncode(2, header->rdx, header, pid);
+            extra_buffer = InputPointerEncode(2, header->rdx, header->rsi, header);
             break;
         }
         case 2: {
             header->p_flag = IN_POINTER;
-            extra_buffer = InputPointerEncode(1, 8, header, pid);
+            extra_buffer = InputPointerEncode(1, strlen((char *)header->rsi), header->rsi, header);
             break;
         }
         case 257: {
             header->p_flag = IN_POINTER;
-            extra_buffer = InputPointerEncode(2, 8, header, pid);
+            fprintf(stderr, "pointerencode-switch-257\n");
+            fprintf(stderr, "printf-strlen:%d\n", strlen((char *)(unsigned long int)(header->rsi)));
+            extra_buffer = InputPointerEncode(2, strlen((char *)header->rsi), header->rsi, header);
             break;
         }
     }
@@ -65,7 +82,7 @@ int PointerEncode(struct rsc_header * header, char * write_buffer, pid_t pid){
         case 89: {
             header->p_flag =IO_POINTER;
             extra_buffer = OutputPointerEncode(2, header->rdx, header);
-            extra_buffer = InputPointerEncode(1, 8, header, pid);
+            extra_buffer = InputPointerEncode(1, strlen((char *)header->rdi), header->rdi, header);
             break;
         }
     }
@@ -75,46 +92,20 @@ int PointerEncode(struct rsc_header * header, char * write_buffer, pid_t pid){
         case 7: {}
     }
 
-    // syscall_request = (char *)malloc(sizeof(char) * header->size);
-    // memset(syscall_request, 0, header->size);
-    // memcpy(syscall_request, header, RSC_HEADER_SIZE);
-    // if (extra_buffer != NULL){
-    //     memcpy(syscall_request + RSC_HEADER_SIZE, extra_buffer, header->size - RSC_HEADER_SIZE);
-    //     free(extra_buffer);
-    //     extra_buffer = NULL;
-    // }
-    memcpy(write_buffer, header, RSC_HEADER_SIZE);
-    if (extra_buffer != NULL){
-        memcpy(write_buffer + RSC_HEADER_SIZE, extra_buffer, header->size - RSC_HEADER_SIZE);
-        free(extra_buffer);
-        extra_buffer = NULL;
-    }
-    // struct rsc_header t_header;
-    // memcpy(&t_header, syscall_request, RSC_HEADER_SIZE);
-    // printf("t_header->syscall:%d\n", t_header.syscall);
-    // return syscall_request;
-    return 1;
+    return extra_buffer;
 }
 
-char * InputPointerEncode(unsigned int p_location, unsigned int p_count, struct rsc_header * header, pid_t pid){
-    unsigned long long int addr = 0;
-    switch(p_location) {
-        case 1: addr = header->rdi; break;
-        case 2: addr = header->rsi; break;
-        case 3: addr = header->rdx; break;
-        case 4: addr = header->r10; break;
-        case 5: addr = header->r8; break;
-        case 6: addr = header->r9; break;
-    }
-
+char * InputPointerEncode(unsigned int p_location, unsigned int p_count, unsigned long long addr_in, struct rsc_header * header){
+    fprintf(stderr, "inputpointerencode-entry\n");
     char * extra_buffer = NULL;
 
     header->size = p_count + RSC_HEADER_SIZE;
     header->p_location_in = p_location;
     header->p_count_in = p_count;
-    
+
+    fprintf(stderr, "p_count:%d\n", p_count);
     extra_buffer = (char *)malloc(sizeof(char) * p_count);
-    GetData(pid, addr, extra_buffer, p_count);
+    memcpy(extra_buffer, (char *)addr_in, p_count);
 
     return extra_buffer;
 }
@@ -128,7 +119,7 @@ char * OutputPointerEncode(unsigned int p_location, unsigned int p_count, struct
 }
 
 // remote syscall execute result decode
-int ResultDecode(struct user_regs_struct * regs, struct rsc_header * header, char * extra_buffer,pid_t pid){
+int ResultDecode(struct user_regs_struct * regs, struct rsc_header * header, char * extra_buffer){
     switch (header->p_flag) {
         case 2: {
             if (OutputPointerDecode(regs, header, extra_buffer) < 0) {
@@ -225,37 +216,9 @@ void ResetBitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     *base_p = base_n | ((( base_n >> surplus) & RESET_MASK) << surplus);
 }
 
-void GetData(pid_t child, unsigned long addr, char *str, int len){
-    char *laddr;
-    int i, j;
-    union u {
-            long val;
-            char chars[8];
-    }data;
-    i = 0;
-    j = len / 8;
-    laddr = str;
-    while(i < j) {
-        data.val = ptrace(PTRACE_PEEKDATA,
-                          child, addr + i * 4,
-                          NULL);
-        memcpy(laddr, data.chars, 8);
-        ++i;
-        laddr += 8;
-    }
-    j = len % 8;
-    if(j != 0) {
-        data.val = ptrace(PTRACE_PEEKDATA,
-                          child, addr + i * 4,
-                          NULL);
-        memcpy(laddr, data.chars, j);
-    }
-    str[len] = '\0';
-}
-
 void DebugPrintf(struct rsc_header * header){
-    fprintf(stderr, "syscall:%lld, p_flag:%d, size:%d, error:%d\n", header->syscall,header->p_flag, header->size, header->error);
-    fprintf(stderr, "rax:%lld, rdi:%lld, rsi:%lld, rdx:%lld, r10:%lld, r8:%lld, r9:%lld\n", header->rax, header->rdi,header->rsi,header->rdx,header->r10,header->r8,header->r9);
+    fprintf(stderr, "syscall:%ld, p_flag:%d, size:%d, error:%d\n", header->syscall,header->p_flag, header->size, header->error);
+    fprintf(stderr, "rax:%ld, rdi:%ld, rsi:%ld, rdx:%ld, r10:%ld, r8:%ld, r9:%ld\n", header->rax, header->rdi,header->rsi,header->rdx,header->r10,header->r8,header->r9);
     fprintf(stderr, "p_location_in:%d, p_location_out:%d, p_count_in:%d, p_count_out:%d\n", header->p_location_in, header->p_location_out, header->p_count_in, header->p_count_out);
     fprintf(stderr, "p_addr_in:%s, p_addr_out:%s\n", header->p_addr_in, header->p_addr_out);
 }

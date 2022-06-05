@@ -12,14 +12,14 @@ int RSCHandle(int sockfd_c);
 
 int RequestDecode(struct rsc_header * header, char * buffer);
 int RequestExecute(struct rsc_header * header);
-int ResultEncode(struct rsc_header * header, char * read_buffer);
+char * ResultEncode(struct rsc_header * header);
 
 // RSCQ pointer handle
 int InputPointerDecode(struct rsc_header * header, char * buffer);
 int OutputPointerDecode(struct rsc_header * header);
 
 // output pointer handle
-int OutputPointerEncode(struct rsc_header * header, char * read_buffer);
+char * OutputPointerEncode(struct rsc_header * header);
 
 void DebugPrintf(struct rsc_header * header);
 

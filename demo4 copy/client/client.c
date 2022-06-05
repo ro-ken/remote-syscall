@@ -22,10 +22,8 @@ int main(int argc, char **argv)
 
     // Create struct rsc_header to manage remote syscall request encode and decode
     struct rsc_header header;
-    struct user_regs_struct regs;
     memset(&header, 0, RSC_HEADER_SIZE);
-    memset(&regs, 0, sizeof(struct user_regs_struct));
-    // char * syscall_request = NULL;
+    char * syscall_request = NULL;
     char * extra_buffer = NULL;
 
     // Create and initial semaphore
@@ -34,9 +32,9 @@ int main(int argc, char **argv)
     struct sembuf sem_buffer;
     if ((sem_id = SemaphoreGet()) < 0) FATAL("[%s][%s]: get semaphore failure!","client", "SemaphoreGet");
 
-    // socket connect
-    int sockfd = -1;
-    if ((sockfd = SocketConnect(argv[1], atoi(argv[2]))) < 0) FATAL("[%s][%s]: socket connect failure!", "client", "socket");
+    // // socket connect
+    // int sockfd = -1;
+    // if ((sockfd = SocketConnect(argv[1], atoi(argv[2]))) < 0) FATAL("[%s][%s]: socket connect failure!", "client", "socket");
 
     for(;;){
         // block waiting child process request tracing
@@ -67,53 +65,57 @@ int main(int argc, char **argv)
             if (waitpid(pid, 0, 0) == -1) 
                 FATAL("[%s][%s]: in syscall-enter-stop, %d, %s\n", "client", "waitpid", errno, strerror(errno));
             
+            
+
             // get syscall register
+            struct user_regs_struct regs;
             if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) 
                 FATAL("[%s][%s]: in syscall-enter-stop, %d, %s\n", "client", "ptrace_getregs", errno, strerror(errno));
-            
+
             // whether the syscall to be executed remotely
             if (IsSet(syscall_bitmap, regs.orig_rax) == 1){
 
+                fprintf(stderr, "regs.syscall:%lld\n", regs.orig_rax);
                 // remote syscall request encode
-                char write_buffer[1000];
-                memset(write_buffer, 0, 1000);
-                RequestEncode(&regs, &header, write_buffer, pid);
+                syscall_request = RequestEncode(&regs, &header);
+                fprintf(stderr, "syscall:%lld, p_flag:%d, size:%d, error:%d\n", header.syscall,header.p_flag, header.size, header.error);
+                fprintf(stderr, "rax:%lld, rdi:%lld, rsi:%lld, rdx:%lld, r10:%lld, r8:%lld, r9:%lld\n", header.rax, header.rdi,header.rsi,header.rdx,header.r10,header.r8,header.r9);
+                fprintf(stderr, "p_location_in:%d, p_location_out:%d, p_count_in:%d, p_count_out:%d\n", header.p_location_in, header.p_location_out, header.p_count_in, header.p_count_out);
+                fprintf(stderr, "p_addr_in:%s, p_addr_out:%s\n", header.p_addr_in, header.p_addr_out);
 
-                // socket write remote syscall request
-                int ret = 0;
-                if ((ret = write(sockfd, write_buffer, 1000)) < 0) 
-                    FATAL("[%s][%s]: in syscall-enter-stop, %d, %s, write bytes: %d\n", "client", "write", errno, strerror(errno), ret);
-                // struct rsc_header t_header;
-                // memcpy(&t_header, write_buffer, RSC_HEADER_SIZE);
-                // DebugPrintf(&t_header);
+                // // socket write remote syscall request
+                // int ret = 0;
+                // if ((ret = write(sockfd, syscall_request, header.size)) < 0) 
+                //     FATAL("[%s][%s]: in syscall-enter-stop, %d, %s, write bytes: %d\n", "client", "write", errno, strerror(errno), ret);
 
-                // socket read remote syscall execute result
-                memset(write_buffer, 0, 1000);
-                if (( ret = read(sockfd, write_buffer, 1000)) < 0) 
-                    FATAL("[%s][%s]: in syscall-enter-stop, %d, %s, read bytes: %d\n", "client", "read", errno, strerror(errno), ret);
-                memcpy(&header, write_buffer, RSC_HEADER_SIZE);
-                if (header.size > RSC_HEADER_SIZE){
-                    extra_buffer = (char *)malloc(sizeof(char) * (header.size - RSC_HEADER_SIZE));
-                    memcpy(extra_buffer, write_buffer+RSC_HEADER_SIZE, header.size - RSC_HEADER_SIZE);
-                }
+                // // socket read remote syscall execute result
+                // if (( ret = read(sockfd, &header, RSC_HEADER_SIZE)) < 0) 
+                //     FATAL("[%s][%s]: in syscall-enter-stop, %d, %s, read bytes: %d\n", "client", "read", errno, strerror(errno), ret);
+                // if (header.size > RSC_HEADER_SIZE){
+                //     extra_buffer = (char *)malloc(sizeof(char) * (header.size - RSC_HEADER_SIZE));
+                //     if ((ret = read(sockfd, extra_buffer, header.size - RSC_HEADER_SIZE)) < 0) 
+                //         FATAL("[%s][%s]: in syscall-enter-stop, %d, %s, read bytes: %d\n", "client", "read", errno, strerror(errno), ret);
+                // }
 
+                // // remote syscall execute result decode 
+                // if (ResultDecode(&regs, &header, extra_buffer) < 0)
+                //     FATAL("[%s][%s]: in syscall-enter-stop\n", "client", "result_decode");
+
+                // syscall redirect(ptrace can't stop a syscall already started)
                 regs.orig_rax = RSC_REDIRECT_SYSCALL;
                 if (ptrace(PTRACE_SETREGS, pid, 0, &regs) == -1) 
-                    FATAL("[%s][%s]: in syscall-exit-stop, %d, %s\n", "client", "ptrace_setregs", errno, strerror(errno));
-
+                    FATAL("[%s][%s]: in syscall-enter-stop, %d, %s\n", "client", "read", errno, strerror(errno));
                 
                 // syscall-exit-stop
                 if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1) 
                     FATAL("[%s][%s]: in syscall-exit-stop, %d, %s\n", "client", "ptrace_syscall", errno, strerror(errno));
                 if (waitpid(pid, 0, 0) == -1) 
                     FATAL("[%s][%s]: in syscall-exit-stop, %d, %s\n", "client", "waitpid", errno, strerror(errno));
-                
-                // return remote syscall execute to child process
-                if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) 
-                    FATAL("[%s][%s]: in syscall-exit-stop, %d, %s\n", "client", "ptrace_setregs", errno, strerror(errno));
-                regs.rax = header.rax;
-                if (ptrace(PTRACE_SETREGS, pid, 0, &regs) == -1) 
-                    FATAL("[%s][%s]: in syscall-exit-stop, %d, %s\n", "client", "ptrace_setregs", errno, strerror(errno));
+
+                // // return remote syscall execute to child process
+                // regs.rax = header.rax;
+                // if (ptrace(PTRACE_SETREGS, pid, 0, &regs) == -1) 
+                //     FATAL("[%s][%s]: in syscall-exit-stop, %d, %s\n", "client", "ptrace_setregs", errno, strerror(errno));
 
                 // Handling the crime scene
                 memset(&header, 0, RSC_HEADER_SIZE);
@@ -121,7 +123,8 @@ int main(int argc, char **argv)
                     free(extra_buffer);
                     extra_buffer = NULL;
                 }
-                memset(&regs, 0, sizeof(struct user_regs_struct));
+                free(syscall_request);
+                syscall_request = NULL;
 
                 continue;
             }
