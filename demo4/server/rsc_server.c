@@ -15,7 +15,7 @@ int RSCHandle(int sockfd_c){
         if((ret = read(sockfd_c, read_buffer, 1000)) < 0)
             FATAL("[%s][%s]: %s", "server", "read", strerror(errno));
         memcpy(&header, read_buffer, RSC_HEADER_SIZE);
-        // DebugPrintf(&header);
+        DebugPrintf(&header);
 
         if (header.size > RSC_HEADER_SIZE){
             extra_buffer = (char *)malloc(sizeof(char) * (header.size - RSC_HEADER_SIZE));
@@ -25,7 +25,10 @@ int RSCHandle(int sockfd_c){
         // remtoe syscall request decode
         if (RequestDecode(&header, extra_buffer) < 0)
             FATAL("[%s][%s]: remote syscall request decode failure!", "server", "RequestDecode");
+        
+        // Debug check struct rsc_header
         DebugPrintf(&header);
+
         // execute remote syscall request
         if (RequestExecute(&header) < 0)
             FATAL("[%s][%s]: remote syscall request execute failure!", "server", "RequestExecute");
@@ -33,6 +36,9 @@ int RSCHandle(int sockfd_c){
         // remote syscall request execute result encode
         memset(read_buffer, 0 , 1000);
         ResultEncode(&header, read_buffer);
+
+        // // Debug check struct rsc_header
+        // DebugPrintf(&header);
 
         // return rscq result
         if (write(sockfd_c, read_buffer, 1000) < 0) 

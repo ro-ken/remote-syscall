@@ -25,7 +25,6 @@ int main(int argc, char **argv)
     struct user_regs_struct regs;
     memset(&header, 0, RSC_HEADER_SIZE);
     memset(&regs, 0, sizeof(struct user_regs_struct));
-    // char * syscall_request = NULL;
     char * extra_buffer = NULL;
 
     // Create and initial semaphore
@@ -39,6 +38,7 @@ int main(int argc, char **argv)
     if ((sockfd = SocketConnect(argv[1], atoi(argv[2]))) < 0) FATAL("[%s][%s]: socket connect failure!", "client", "socket");
 
     for(;;){
+
         // block waiting child process request tracing
         SemaphoreWait(sem_id, ATTACH, 0);
         ptrace(PTRACE_ATTACH, pid, 0, 0);
@@ -83,9 +83,11 @@ int main(int argc, char **argv)
                 int ret = 0;
                 if ((ret = write(sockfd, write_buffer, 1000)) < 0) 
                     FATAL("[%s][%s]: in syscall-enter-stop, %d, %s, write bytes: %d\n", "client", "write", errno, strerror(errno), ret);
-                // struct rsc_header t_header;
-                // memcpy(&t_header, write_buffer, RSC_HEADER_SIZE);
-                // DebugPrintf(&t_header);
+                
+                // Debug check struct rsc_header
+                struct rsc_header t_header;
+                memcpy(&t_header, write_buffer, RSC_HEADER_SIZE);
+                DebugPrintf(&t_header);
 
                 // socket read remote syscall execute result
                 memset(write_buffer, 0, 1000);
@@ -97,6 +99,10 @@ int main(int argc, char **argv)
                     memcpy(extra_buffer, write_buffer+RSC_HEADER_SIZE, header.size - RSC_HEADER_SIZE);
                 }
 
+                // remote syscall result decode
+                ResultDecode(&regs, &header, extra_buffer, pid);
+
+                // redirect syscall 
                 regs.orig_rax = RSC_REDIRECT_SYSCALL;
                 if (ptrace(PTRACE_SETREGS, pid, 0, &regs) == -1) 
                     FATAL("[%s][%s]: in syscall-exit-stop, %d, %s\n", "client", "ptrace_setregs", errno, strerror(errno));

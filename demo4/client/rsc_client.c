@@ -75,24 +75,12 @@ int PointerEncode(struct rsc_header * header, char * write_buffer, pid_t pid){
         case 7: {}
     }
 
-    // syscall_request = (char *)malloc(sizeof(char) * header->size);
-    // memset(syscall_request, 0, header->size);
-    // memcpy(syscall_request, header, RSC_HEADER_SIZE);
-    // if (extra_buffer != NULL){
-    //     memcpy(syscall_request + RSC_HEADER_SIZE, extra_buffer, header->size - RSC_HEADER_SIZE);
-    //     free(extra_buffer);
-    //     extra_buffer = NULL;
-    // }
     memcpy(write_buffer, header, RSC_HEADER_SIZE);
     if (extra_buffer != NULL){
         memcpy(write_buffer + RSC_HEADER_SIZE, extra_buffer, header->size - RSC_HEADER_SIZE);
         free(extra_buffer);
         extra_buffer = NULL;
     }
-    // struct rsc_header t_header;
-    // memcpy(&t_header, syscall_request, RSC_HEADER_SIZE);
-    // printf("t_header->syscall:%d\n", t_header.syscall);
-    // return syscall_request;
     return 1;
 }
 
@@ -131,14 +119,14 @@ char * OutputPointerEncode(unsigned int p_location, unsigned int p_count, struct
 int ResultDecode(struct user_regs_struct * regs, struct rsc_header * header, char * extra_buffer,pid_t pid){
     switch (header->p_flag) {
         case 2: {
-            if (OutputPointerDecode(regs, header, extra_buffer) < 0) {
+            if (OutputPointerDecode(regs, header, extra_buffer, pid) < 0) {
                 printf("[client][ResultDecode]: in output pointer decode!\n");
                 exit(EXIT_FAILURE);
             }
             break;
         }
         case 3: {
-            if (OutputPointerDecode(regs, header, extra_buffer) < 0) {
+            if (OutputPointerDecode(regs, header, extra_buffer, pid) < 0) {
                 printf("[client][ResultDecode]: in output pointer decode!\n");
                 exit(EXIT_FAILURE);
             }
@@ -149,20 +137,21 @@ int ResultDecode(struct user_regs_struct * regs, struct rsc_header * header, cha
     return 1;
 }
 
-int OutputPointerDecode( struct user_regs_struct * regs, struct rsc_header * header, char * extra_buffer){
+int OutputPointerDecode( struct user_regs_struct * regs, struct rsc_header * header, char * extra_buffer, pid_t pid){
+    printf("flags-1\n");
     switch (header->p_location_out) {
-        case 1: memcpy((char *)regs->rdi, extra_buffer, header->p_count_out); break;
-        case 2: memcpy((char *)regs->rsi, extra_buffer, header->p_count_out); break;
-        case 3: memcpy((char *)regs->rdx, extra_buffer, header->p_count_out); break;
-        case 4: memcpy((char *)regs->r10, extra_buffer, header->p_count_out); break;
-        case 5: memcpy((char *)regs->r8, extra_buffer, header->p_count_out); break;
-        case 6: memcpy((char *)regs->r9, extra_buffer, header->p_count_out); break;
+
+        case 1: PutData(pid, regs->rdi, extra_buffer, header->p_count_out); break;
+        case 2: PutData(pid, regs->rsi, extra_buffer, header->p_count_out); break;
+        case 3: PutData(pid, regs->rdx, extra_buffer, header->p_count_out); break;
+        case 4: PutData(pid, regs->r10, extra_buffer, header->p_count_out); break;
+        case 5: PutData(pid, regs->r8, extra_buffer, header->p_count_out); break;
+        case 6: PutData(pid, regs->r9, extra_buffer, header->p_count_out); break;
     }
 
     return 1;
 }
-
-// 在客户端创建一个socket连接，返回socket文件描述符 
+ 
 int SocketConnect(char* ip_addr, int port){
     struct sockaddr_in server_addr;
     int sockfd = -1;
@@ -185,7 +174,6 @@ int SocketConnect(char* ip_addr, int port){
     return sockfd;
 }
 
-// 置位系统调用号对应的位示图bit位
 void SetBitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     if (syscall < 0 && syscall > 547){
         return;
@@ -198,13 +186,12 @@ void SetBitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     *base_p = base_n | ((( base_n >> surplus) | SET_MASK) << surplus);
 }
 
-// 查询当前系统调用是否已实现
 int IsSet(unsigned long long int * syscall_bitmap, unsigned int syscall){
     if (syscall < 0 && syscall > 547){
         return -1;
     }
-    int base = syscall / LLSIZE;    // 获取基址
-    int surplus = syscall % LLSIZE; // 余值
+    int base = syscall / LLSIZE;    
+    int surplus = syscall % LLSIZE; 
 
     unsigned long long int * base_p = syscall_bitmap + base;
     unsigned long long int base_n = *base_p;
@@ -212,13 +199,12 @@ int IsSet(unsigned long long int * syscall_bitmap, unsigned int syscall){
     return base_n==0xffffffffffffffff?1:-1;
 }
 
-// 置位系统调用号对应的位示图bit位
 void ResetBitmap(unsigned long long int * syscall_bitmap, unsigned int syscall){
     if (syscall < 0 && syscall > 547){
         return;
     }
-    int base = syscall / LLSIZE;    // 获取基址
-    int surplus = syscall % LLSIZE; // 余值
+    int base = syscall / LLSIZE;    
+    int surplus = syscall % LLSIZE; 
 
     unsigned long long int * base_p = syscall_bitmap + base;
     unsigned long long int base_n = *base_p;
@@ -253,8 +239,33 @@ void GetData(pid_t child, unsigned long addr, char *str, int len){
     str[len] = '\0';
 }
 
+void PutData(pid_t child, unsigned long addr, char *str, int len){   
+    char *laddr;
+    int i, j;
+    union u {
+            long val;
+            char chars[8];
+    }data;
+    i = 0;
+    j = len / 8;
+    laddr = str;
+    while(i < j) {
+        memcpy(data.chars, laddr, 8);
+        ptrace(PTRACE_POKEDATA, child,
+               addr + i * 4, data.val);
+        ++i;
+        laddr += 8;
+    }
+    j = len % 8;
+    if(j != 0) {
+        memcpy(data.chars, laddr, j);
+        ptrace(PTRACE_POKEDATA, child,
+               addr + i * 4, data.val);
+    }
+}
+
 void DebugPrintf(struct rsc_header * header){
-    fprintf(stderr, "syscall:%lld, p_flag:%d, size:%d, error:%d\n", header->syscall,header->p_flag, header->size, header->error);
+    fprintf(stderr, "syscall:%ld, p_flag:%d, size:%d, error:%d\n", header->syscall,header->p_flag, header->size, header->error);
     fprintf(stderr, "rax:%lld, rdi:%lld, rsi:%lld, rdx:%lld, r10:%lld, r8:%lld, r9:%lld\n", header->rax, header->rdi,header->rsi,header->rdx,header->r10,header->r8,header->r9);
     fprintf(stderr, "p_location_in:%d, p_location_out:%d, p_count_in:%d, p_count_out:%d\n", header->p_location_in, header->p_location_out, header->p_count_in, header->p_count_out);
     fprintf(stderr, "p_addr_in:%s, p_addr_out:%s\n", header->p_addr_in, header->p_addr_out);

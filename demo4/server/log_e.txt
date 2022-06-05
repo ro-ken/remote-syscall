@@ -1,16 +1,72 @@
 syscall:257, p_flag:1, size:120, error:0
-rax:-38, rdi:4294967196, rsi:94577637204640, rdx:577, r10:438, r8:4, r9:1
+rax:-38, rdi:4294967196, rsi:94885817753610, rdx:577, r10:438, r8:4, r9:1
 p_location_in:2, p_location_out:0, p_count_in:8, p_count_out:0
-p_addr_in:text.txt, p_addr_out:(null)
+p_addr_in:(null), p_addr_out:(null)
+syscall:257, p_flag:1, size:120, error:0
+rax:-38, rdi:4294967196, rsi:94511634399904, rdx:577, r10:438, r8:4, r9:1
+p_location_in:2, p_location_out:0, p_count_in:8, p_count_out:0
+p_addr_in:ce_w.txt, p_addr_out:(null)
+syscall:1, p_flag:1, size:136, error:0
+rax:-38, rdi:5, rsi:94885849543808, rdx:24, r10:438, r8:0, r9:0
+p_location_in:2, p_location_out:0, p_count_in:24, p_count_out:0
+p_addr_in:(null), p_addr_out:(null)
+syscall:1, p_flag:1, size:136, error:0
+rax:-38, rdi:5, rsi:94511634399904, rdx:24, r10:438, r8:0, r9:0
+p_location_in:2, p_location_out:0, p_count_in:24, p_count_out:0
+p_addr_in:huomax iax is a s a big Q, p_addr_out:(null)
 syscall:3, p_flag:0, size:112, error:0
-rax:-38, rdi:5, rsi:4222428164, rdx:140689493305504, r10:438, r8:0, r9:1
+rax:-38, rdi:5, rsi:94885849543808, rdx:140671857313952, r10:438, r8:0, r9:0
 p_location_in:0, p_location_out:0, p_count_in:0, p_count_out:0
 p_addr_in:(null), p_addr_out:(null)
 syscall:3, p_flag:0, size:112, error:0
-rax:0, rdi:5, rsi:4222428164, rdx:140689493305504, r10:438, r8:0, r9:1
+rax:-38, rdi:5, rsi:94885849543808, rdx:140671857313952, r10:438, r8:0, r9:0
 p_location_in:0, p_location_out:0, p_count_in:0, p_count_out:0
 p_addr_in:(null), p_addr_out:(null)
 syscall:3, p_flag:0, size:112, error:0
-rax:-1, rdi:5, rsi:4222428164, rdx:140689493305504, r10:438, r8:0, r9:1
+rax:0, rdi:5, rsi:94885849543808, rdx:140671857313952, r10:438, r8:0, r9:0
 p_location_in:0, p_location_out:0, p_count_in:0, p_count_out:0
 p_addr_in:(null), p_addr_out:(null)
+syscall:3, p_flag:0, size:112, error:0
+rax:0, rdi:5, rsi:94885849543808, rdx:140671857313952, r10:438, r8:0, r9:0
+p_location_in:0, p_location_out:0, p_count_in:0, p_count_out:0
+p_addr_in:(null), p_addr_out:(null)
+syscall:3, p_flag:0, size:112, error:0
+rax:-1, rdi:5, rsi:94885849543808, rdx:140671857313952, r10:438, r8:0, r9:0
+p_location_in:0, p_location_out:0, p_count_in:0, p_count_out:0
+p_addr_in:(null), p_addr_out:(null)
+syscall:3, p_flag:0, size:112, error:0
+rax:-1, rdi:5, rsi:94885849543808, rdx:140671857313952, r10:438, r8:0, r9:0
+p_location_in:0, p_location_out:0, p_count_in:0, p_count_out:0
+p_addr_in:(null), p_addr_out:(null)
+syscall:257, p_flag:1, size:120, error:0
+rax:-38, rdi:4294967196, rsi:94917125558282, rdx:0, r10:0, r8:8, r9:1
+p_location_in:2, p_location_out:0, p_count_in:8, p_count_out:0
+p_addr_in:(null), p_addr_out:(null)
+syscall:257, p_flag:1, size:120, error:0
+rax:-38, rdi:4294967196, rsi:94511634399904, rdx:0, r10:0, r8:8, r9:1
+p_location_in:2, p_location_out:0, p_count_in:8, p_count_out:0
+p_addr_in:cs_r.txt, p_addr_out:(null)
+syscall:0, p_flag:2, size:112, error:0
+rax:-38, rdi:5, rsi:94917129749632, rdx:8192, r10:0, r8:5, r9:124
+p_location_in:0, p_location_out:2, p_count_in:0, p_count_out:8192
+p_addr_in:(null), p_addr_out:(null)
+syscall:0, p_flag:2, size:112, error:0
+rax:-38, rdi:5, rsi:94511634399936, rdx:8192, r10:0, r8:5, r9:124
+p_location_in:0, p_location_out:2, p_count_in:0, p_count_out:8192
+p_addr_in:(null), p_addr_out:
+syscall:3, p_flag:0, size:112, error:0
+rax:-38, rdi:5, rsi:4222428168, rdx:140591953922208, r10:0, r8:0, r9:124
+p_location_in:0, p_location_out:0, p_count_in:0, p_count_out:0
+p_addr_in:(null), p_addr_out:(null)
+syscall:3, p_flag:0, size:112, error:0
+rax:-38, rdi:5, rsi:4222428168, rdx:140591953922208, r10:0, r8:0, r9:124
+p_location_in:0, p_location_out:0, p_count_in:0, p_count_out:0
+p_addr_in:(null), p_addr_out:(null)
+syscall:1, p_flag:1, size:226, error:0
+rax:-38, rdi:1, rsi:94917129749632, rdx:114, r10:94917125558304, r8:4294967295, r9:113
+p_location_in:2, p_location_out:0, p_count_in:114, p_count_out:0
+p_addr_in:(null), p_addr_out:(null)
+syscall:1, p_flag:1, size:226, error:0
+rax:-38, rdi:1, rsi:94511634399936, rdx:114, r10:94917125558304, r8:4294967295, r9:113
+p_location_in:2, p_location_out:0, p_count_in:114, p_count_out:0
+p_addr_in:read dat data: ha: huomeuomery iry i.hu .hu veruveruai.aai.ax vsx vshuaohuaomaxymaxy shh shhuomeuomery iry i.hu .hx very—, p_addr_out:(null)

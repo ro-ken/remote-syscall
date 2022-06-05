@@ -19,6 +19,6 @@ rsc_semaphore.o : rsc_semaphore.c
 	$(cc) -c $^ -o rsc_semaphore.o
 
 clean :
-	rm client rsc_client.o client.o rsc_semaphore.o
+	rm client rsc_client.o client.o rsc_semaphore.o example example.o
 
 .PHONY: clean client
